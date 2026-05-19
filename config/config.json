@@ -1,0 +1,10 @@
+{
+  "API": "https://server.autovideo9999.store/",
+  "VERSION": "3.2.3",
+  "ACCOUNT_ID": "tuan2003",
+  "TTS": "ak_MTU0NDM1OmhvYW5nbmdvY2hpZXB2aWRlb0BnbWFpbC5jb206UWZKNTVJd2NTN0k=.2f3435fdbc4e",
+  "API_KEY": "AIzaSyBITlonohRGGo9w-JEqf5eSOX2HISqg4q0",
+  "cloneVideoModel": "gemini-2.5-flash",
+  "cloneVideoApiKey": "AIzaSyD5QNVIT2HPxKlyj2MGPWfjQNdZLxYQyPU",
+  "CDP_PORT": 9222
+}

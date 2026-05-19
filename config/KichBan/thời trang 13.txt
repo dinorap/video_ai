@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. Phim quay thật, không hoạt hình, không minh họa. Không có âm thanh, video im lặng hoàn toàn, không nhạc nền, không tiếng môi trường, không giọng nói. Hình ảnh thứ nhất là tham chiếu sản phẩm (thời trang). Chỉ dùng để mô tả trang phục. Hình ảnh thứ hai là tham chiếu nhân vật. Chỉ dùng để mô tả ngoại hình nhân vật. Giữ chính xác khuôn mặt, vóc dáng, màu da, kiểu tóc và tỉ lệ gương mặt theo ảnh tham chiếu. Nhân vật trong video phải giống 100% hình tham chiếu. Không được thay đổi hoặc tạo biến thể. Dù chuyển động thế nào, phải giữ nguyên khuôn mặt và đặc điểm nhân vật theo ảnh tham chiếu, không được thay đổi. Camera luôn quay khung hình toàn thân nhân vật với góc nhìn trực diện. Cảnh 1: Nhân vật nữ xuất hiện toàn thân từ đầu đến chân trong góc quay ổn định. Cô gái bước đi về phía trước với nụ cười mỉm tự nhiên, dáng đi tự nhiên, ánh mắt thật tự nhiên. Camera di chuyển theo để giữ khung hình toàn thân.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. Phim quay thật, không hoạt hình, không minh họa. Không có âm thanh, video im lặng hoàn toàn, không nhạc nền, không tiếng môi trường, không giọng nói. Hình ảnh thứ nhất là tham chiếu sản phẩm (thời trang). Chỉ dùng để mô tả trang phục. Hình ảnh thứ hai là tham chiếu nhân vật. Chỉ dùng để mô tả ngoại hình nhân vật. Giữ chính xác khuôn mặt, vóc dáng, màu da, kiểu tóc và tỉ lệ gương mặt theo ảnh tham chiếu. Nhân vật trong video phải giống 100% hình tham chiếu. Không được thay đổi hoặc tạo biến thể. Dù chuyển động thế nào, phải giữ nguyên khuôn mặt và đặc điểm nhân vật theo ảnh tham chiếu, không được thay đổi. Camera luôn quay khung hình toàn thân nhân vật với góc nhìn trực diện. Cảnh 2: Nhân vật nữ đứng toàn thân trong khung hình ổn định. Cô thực hiện động tác xoay một vòng thật tự nhiên, không thay đổi khuôn mặt. Rồi cô ấy đi về phía trước, ánh mắt và nụ cười mỉm thật tự nhiên. Trang phục chuyển động nhẹ theo vòng xoay.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. Phim quay thật, không hoạt hình, không minh họa. Không có âm thanh, video im lặng hoàn toàn, không nhạc nền, không tiếng môi trường, không giọng nói. Hình ảnh thứ nhất là tham chiếu sản phẩm (thời trang). Chỉ dùng để mô tả trang phục. Hình ảnh thứ hai là tham chiếu nhân vật. Chỉ dùng để mô tả ngoại hình nhân vật. Giữ chính xác khuôn mặt, vóc dáng, màu da, kiểu tóc và tỉ lệ gương mặt theo ảnh tham chiếu. Nhân vật trong video phải giống 100% hình tham chiếu. Không được thay đổi hoặc tạo biến thể. Dù chuyển động thế nào, phải giữ nguyên khuôn mặt và đặc điểm nhân vật theo ảnh tham chiếu, không được thay đổi. Cảnh 3: Cô gái lấy tay xoa nhẹ lên áo ở phần cổ tay. Camera chuyển sang cận cảnh trang phục. Quay cận chất liệu vải để thấy rõ kết cấu, độ rủ và chi tiết bề mặt. Không hiển thị mặt nhân vật, chỉ tập trung vào sản phẩm.",
+      "audio": ""
+    }
+]
+

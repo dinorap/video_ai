@@ -1,0 +1,151 @@
+<div id="confirmModal" class="modal-overlay">
+
+    <div class="modal-box">
+
+        <div id="modalMessage">
+            Lưu ID mới?
+        </div>
+
+        <div class="modal-buttons">
+
+            <button id="confirmSaveBtn" class="modal-confirm">
+                Xác nhận
+            </button>
+
+            <button onclick="closeModal()" class="modal-cancel">
+                Hủy
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Overlay xem ảnh theme -->
+<div id="imageOverlay" class="image-overlay" style="display:none;">
+    <div class="image-overlay-backdrop" onclick="closeImageOverlay()"></div>
+    <div class="image-overlay-content">
+        <img id="overlayImage" src="" alt="Theme preview">
+        <button type="button" class="image-overlay-close" onclick="closeImageOverlay()">×</button>
+    </div>
+</div>
+
+<div id="videoOverlay" class="audio-overlay" style="display:none;">
+    <div class="audio-overlay-backdrop" onclick="closeVideoOverlay()"></div>
+    <div class="audio-overlay-content" style="max-width: 980px; width: calc(100% - 40px);">
+        <div id="videoTitle" class="audio-title">Xem video</div>
+        <video id="videoPlayer" controls style="width: 100%; margin-top: 10px; max-height: 70vh; background: #000;"></video>
+        <button type="button" class="audio-overlay-close" onclick="closeVideoOverlay()">×</button>
+    </div>
+</div>
+
+<!-- Overlay nghe thử nhạc -->
+<div id="audioOverlay" class="audio-overlay" style="display:none;">
+    <div class="audio-overlay-backdrop" onclick="closeAudioOverlay()"></div>
+    <div class="audio-overlay-content">
+        <div id="audioTitle" class="audio-title">Nghe thử nhạc</div>
+        <audio id="audioPlayer" controls style="width: 100%; margin-top: 10px;">
+            Trình duyệt không hỗ trợ audio.
+        </audio>
+        <button type="button" class="audio-overlay-close" onclick="closeAudioOverlay()">×</button>
+    </div>
+</div>
+
+<!-- Overlay xác nhận xóa nhạc -->
+<div id="deleteMusicModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="deleteMusicMessage">
+            Xóa file nhạc này?
+        </div>
+        <div class="modal-buttons" id="deleteMusicButtons">
+            <button type="button" class="modal-confirm" onclick="confirmDeleteMusic()">Xác nhận</button>
+            <button type="button" class="modal-cancel" onclick="closeDeleteMusicModal()">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay đặt tên file nhạc khi thêm mới -->
+<div id="saveMusicNameModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="saveMusicNameMessage">Đặt tên file nhạc sẽ được lưu</div>
+        <input id="saveMusicNameInput" class="input-control" type="text" style="margin-top: 10px;" />
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="saveMusicNameConfirmBtn" type="button" class="modal-confirm">Lưu</button>
+            <button id="saveMusicNameCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<div id="uninstallConfirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="uninstallConfirmMessage">Bạn có chắc muốn gỡ cài đặt không?</div>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="uninstallConfirmBtn" type="button" class="modal-confirm">Xác nhận</button>
+            <button id="uninstallCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<div id="exitAppModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="exitAppMessage">Bạn có muốn lưu video trước khi thoát không?</div>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="exitAppSaveBtn" type="button" class="modal-confirm">Lưu</button>
+            <button id="exitAppDiscardBtn" type="button" class="modal-cancel">Không lưu</button>
+            <button id="exitAppCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay lưu kịch bản -->
+<div id="saveScriptModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="saveScriptMessage">Save Script</div>
+        <div style="margin-top: 12px;">
+            <label style="display: block; margin-bottom: 6px;">File name:</label>
+            <input id="saveScriptNameInput" class="input-control" type="text" style="width: 100%;" />
+        </div>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="saveScriptConfirmBtn" type="button" class="modal-confirm">Save</button>
+            <button id="saveScriptCancelBtn" type="button" class="modal-cancel">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay xóa cảnh -->
+<div id="deleteSceneModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="deleteSceneMessage">Xóa cảnh này?</div>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="deleteSceneConfirmBtn" type="button" class="modal-confirm">Xóa</button>
+            <button id="deleteSceneCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay xóa kịch bản -->
+<div id="deleteScriptModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div id="deleteScriptMessage">Xóa kịch bản này?</div>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="deleteScriptConfirmBtn" type="button" class="modal-confirm">Xóa</button>
+            <button id="deleteScriptCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<div id="paymentOverlay" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width: 560px; width: 92%;">
+        <div style="font-weight: 900; font-size: 18px; margin-bottom: 10px;">Hết Credit - Thanh toán</div>
+        <div id="paymentOverlayMessage" style="opacity: 0.92; line-height: 1.35;">Đã hết lượt. Vui lòng thanh toán để tiếp tục.</div>
+        <div style="display:flex; align-items:center; justify-content:center; margin: 14px 0 10px;">
+            <div id="paymentOverlayQr" title="QR Mock" style="width: 240px; height: 240px; border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.95) 0, rgba(255,255,255,0.95) 10px, rgba(0,0,0,0.95) 10px, rgba(0,0,0,0.95) 20px); border: 6px solid rgba(255,255,255,0.16);"></div>
+        </div>
+        <div style="text-align:center; opacity: 0.85; font-size: 13px; margin-top: 8px;">Quét QR để thanh toán (mô phỏng)</div>
+        <div class="modal-buttons" style="margin-top: 12px; justify-content: flex-end;">
+            <button type="button" class="modal-cancel" onclick="closePaymentOverlay()">Đóng</button>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,17 @@
+[
+  {
+    "scene": 1,
+    "prompt": "hhhh",
+    "audio": ""
+  },
+  {
+    "scene": 2,
+    "prompt": "duration: 8 seconds. Phim quay thật, không hoạt hình, không minh họa. Không có âm thanh, video im lặng hoàn toàn, không nhạc nền, không tiếng môi trường, không giọng nói. Hình ảnh thứ nhất là tham chiếu sản phẩm (thời trang). Chỉ dùng để mô tả trang phục. Hình ảnh thứ hai là tham chiếu nhân vật. Chỉ dùng để mô tả ngoại hình nhân vật. Giữ chính xác khuôn mặt, vóc dáng, màu da, kiểu tóc và tỉ lệ gương mặt theo ảnh tham chiếu. Nhân vật trong video phải giống 100% hình tham chiếu. Không được thay đổi hoặc tạo biến thể. Dù chuyển động thế nào, phải giữ nguyên khuôn mặt và đặc điểm nhân vật theo ảnh tham chiếu, không được thay đổi. Camera luôn quay khung hình toàn thân nhân vật với góc nhìn trực diện. Cảnh 1: Nhân vật nữ bước thẳng về phía trước với dáng đi tự nhiên, sau đó dừng lại tạo dáng nhẹ. Cô mỉm cười tinh tế, ánh mắt tự nhiên và tự tin. Camera di chuyển theo để giữ trọn khung hình toàn thân.",
+    "audio": ""
+  },
+  {
+    "scene": 3,
+    "prompt": "duration: 8 seconds. Phim quay thật, không hoạt hình, không minh họa. Không có âm thanh, video im lặng hoàn toàn, không nhạc nền, không tiếng môi trường, không giọng nói. Hình ảnh thứ nhất là tham chiếu sản phẩm (thời trang). Chỉ dùng để mô tả trang phục. Hình ảnh thứ hai là tham chiếu nhân vật. Chỉ dùng để mô tả ngoại hình nhân vật. Giữ chính xác khuôn mặt, vóc dáng, màu da, kiểu tóc và tỉ lệ gương mặt theo ảnh tham chiếu. Nhân vật trong video phải giống 100% hình tham chiếu. Không được thay đổi hoặc tạo biến thể. Dù chuyển động thế nào, phải giữ nguyên khuôn mặt và đặc điểm nhân vật theo ảnh tham chiếu, không được thay đổi. Camera luôn quay toàn thân ở góc trực diện. Cảnh 2: Nhân vật nữ xoay người 360 độ để khoe trọn bộ trang phục, chuyển động nhanh và mượt. Sau khi xoay, cô bước nhẹ về phía trước, một tay chỉnh cổ áo, tay còn lại chống nhẹ lên hông tạo dáng điệu đà. Trang phục chuyển động mềm mại và rõ chi tiết.",
+    "audio": ""
+  }
+]

@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 1: Góc máy thấp cực quyền lực (Worm's eye view). Nhân vật bước tiến mạnh mẽ về phía camera, nhìn xuống với ánh mắt tự tin và tươi cười tự nhiên. Toàn thân hiển thị từ đầu đến chân. Vai ổn định, tay di chuyển tự nhiên theo nhịp. Camera full-body, đặt thấp, TRACKS BACKWARD theo bước đi, khung hình giữ nguyên xuyên suốt cảnh.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 2: Góc máy xoay vòng 3D (Orbit/Arc). Nhân vật tiếp tục bước về phía trước, giữ ánh mắt nhìn thẳng vào camera và nụ cười tự nhiên. Một tay đặt nhẹ dọc eo hoặc hông, nhấn mạnh dáng đứng và phom dáng trang phục. Camera TRACKS BACKWARD, đồng thời xoay 90 độ quanh nhân vật từ góc nhìn trước sang góc nhìn bên, giữ toàn thân trong khung hình xuyên suốt.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 3: Góc máy cao thời thượng (High Angle / Crane Shot). Nhân vật tiếp tục bước về phía trước, hơi ngẩng cằm để duy trì ánh mắt và nụ cười tự nhiên. Tay di chuyển nhẹ theo nhịp, vai ổn định. Camera full-body đặt cao, nhìn xuống 45 độ, TRACKS BACKWARD theo bước đi, khung hình giữ nguyên xuyên suốt.",
+      "audio": ""
+    }
+]
+

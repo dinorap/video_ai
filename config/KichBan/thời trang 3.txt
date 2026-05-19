@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. Ảnh thứ nhất: chỉ dùng cho trang phục. Ảnh thứ hai: giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 1: Full-body, stable shot. Nhân vật bước tiến về phía camera với bước đi tự tin, tay và tóc di chuyển nhẹ theo nhịp. Gương mặt tươi sáng, ánh mắt thẳng vào camera. Camera theo sát toàn thân, TRACKS BACKWARD theo bước đi, khung hình giữ nguyên xuyên suốt.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. Ảnh thứ nhất: chỉ dùng cho trang phục. Ảnh thứ hai: giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 2: Full-body, stable shot. Nhân vật quay nhẹ phần trên cơ thể sang bên, tay đặt tự nhiên dọc eo hoặc hông. Gương mặt vẫn tươi sáng, ánh mắt trực tiếp vào camera. Camera giữ toàn thân ổn định, tập trung vào chuyển động quay cơ thể nhẹ.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion commercial. No audio, silent video, no background sound, no music, no voice. Ảnh thứ nhất: chỉ dùng cho trang phục. Ảnh thứ hai: giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 3: Full-body, stable shot. Nhân vật tiếp tục bước về phía camera, thực hiện chuyển động vai/torso nhẹ nhàng để nhấn mạnh phom dáng trang phục. Gương mặt tươi sáng, ánh mắt trực tiếp vào camera. Camera theo sát toàn thân, kết thúc bằng tư thế đứng tĩnh, khung hình giữ nguyên.",
+      "audio": ""
+    }
+]
+

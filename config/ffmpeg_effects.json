@@ -1,0 +1,44 @@
+[
+  {"name_vi": "Mờ dần", "key": "fade", "description": "Chuyển cảnh mờ dần giữa hai video"},
+  {"name_vi": "Mờ về đen", "key": "fadeblack", "description": "Video trước mờ dần về màu đen rồi chuyển sang video sau"},
+  {"name_vi": "Mờ về trắng", "key": "fadewhite", "description": "Video trước mờ dần về màu trắng rồi chuyển sang video sau"},
+  {"name_vi": "Hòa trộn", "key": "dissolve", "description": "Hai video trộn vào nhau dần dần"},
+  {"name_vi": "Mờ nhanh", "key": "fadefast", "description": "Hiệu ứng fade diễn ra nhanh hơn bình thường"},
+  {"name_vi": "Mờ chậm", "key": "fadeslow", "description": "Hiệu ứng fade diễn ra chậm hơn bình thường"},
+
+  {"name_vi": "Trượt trái", "key": "slideleft", "description": "Video mới trượt từ phải sang trái"},
+  {"name_vi": "Trượt phải", "key": "slideright", "description": "Video mới trượt từ trái sang phải"},
+  {"name_vi": "Trượt lên", "key": "slideup", "description": "Video mới trượt từ dưới lên"},
+  {"name_vi": "Trượt xuống", "key": "slidedown", "description": "Video mới trượt từ trên xuống"},
+
+  {"name_vi": "Quét trái", "key": "wipeleft", "description": "Video mới quét từ phải sang trái"},
+  {"name_vi": "Quét phải", "key": "wiperight", "description": "Video mới quét từ trái sang phải"},
+  {"name_vi": "Quét lên", "key": "wipeup", "description": "Video mới quét từ dưới lên"},
+  {"name_vi": "Quét xuống", "key": "wipedown", "description": "Video mới quét từ trên xuống"},
+
+  {"name_vi": "Mở hình tròn", "key": "circleopen", "description": "Video mới xuất hiện từ tâm ra ngoài dạng hình tròn"},
+  {"name_vi": "Đóng hình tròn", "key": "circleclose", "description": "Video cũ thu lại vào tâm hình tròn rồi chuyển cảnh"},
+  {"name_vi": "Cắt tròn", "key": "circlecrop", "description": "Chuyển cảnh bằng vùng tròn cắt giữa hai video"},
+
+  {"name_vi": "Cắt chữ nhật", "key": "rectcrop", "description": "Chuyển cảnh bằng vùng hình chữ nhật mở rộng"},
+  {"name_vi": "Hiệu ứng khoảng cách", "key": "distance", "description": "Biến dạng khoảng cách giữa hai video khi chuyển"},
+
+  {"name_vi": "Chéo trái dưới", "key": "diagbl", "description": "Chuyển cảnh theo đường chéo từ dưới trái"},
+  {"name_vi": "Chéo phải dưới", "key": "diagbr", "description": "Chuyển cảnh theo đường chéo từ dưới phải"},
+  {"name_vi": "Chéo trái trên", "key": "diagtl", "description": "Chuyển cảnh theo đường chéo từ trên trái"},
+  {"name_vi": "Chéo phải trên", "key": "diagtr", "description": "Chuyển cảnh theo đường chéo từ trên phải"},
+
+  {"name_vi": "Cắt lát ngang trái", "key": "hlslice", "description": "Chuyển cảnh bằng các lát ngang từ trái"},
+  {"name_vi": "Cắt lát ngang phải", "key": "hrslice", "description": "Chuyển cảnh bằng các lát ngang từ phải"},
+  {"name_vi": "Cắt lát dọc lên", "key": "vuslice", "description": "Chuyển cảnh bằng các lát dọc từ dưới lên"},
+  {"name_vi": "Cắt lát dọc xuống", "key": "vdslice", "description": "Chuyển cảnh bằng các lát dọc từ trên xuống"},
+
+  {"name_vi": "Trượt mượt trái", "key": "smoothleft", "description": "Trượt trái nhưng mượt hơn slide thường"},
+  {"name_vi": "Trượt mượt phải", "key": "smoothright", "description": "Trượt phải nhưng mượt hơn slide thường"},
+  {"name_vi": "Trượt mượt lên", "key": "smoothup", "description": "Trượt lên nhưng mượt hơn"},
+  {"name_vi": "Trượt mượt xuống", "key": "smoothdown", "description": "Trượt xuống nhưng mượt hơn"},
+
+  {"name_vi": "Vỡ pixel", "key": "pixelize", "description": "Chuyển cảnh bằng hiệu ứng vỡ pixel"},
+  {"name_vi": "Xoáy tròn", "key": "radial", "description": "Chuyển cảnh dạng xoáy tròn"},
+  {"name_vi": "Fade xám", "key": "fadegrays", "description": "Fade qua tông màu xám trước khi chuyển"}
+]

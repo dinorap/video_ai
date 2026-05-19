@@ -1,0 +1,12 @@
+[
+  {
+    "scene": 1,
+    "prompt": "duration: 8 seconds.\nrealistic live-action footage, no cartoon, no illustration.\nThe first image is the product reference (Video Clone).\nSử dụng nó CHỈ cho ngoại hình của sản phẩm.\nThe second image is the character reference.\nSử dụng nó CHỈ cho ngoại hình của nhân vật.\nScene 1: Nhân vật hoàn toàn hiển thị từ đầu đến chân trong một cảnh quay toàn thân ổn định. Nhân vật đứng yên, đối mặt về phía trước, với một sự chuyển trọng lượng nhẹ. Chỉ mô tả tư thế và chuyển động của con người. Không có đồ vật. Không có hậu cảnh. Không có chi tiết về ngoại hình. Không ngồi. Không chuyển cảnh. Không cử động miệng. Đi bộ và xoay người có thể lặp lại tự nhiên. Máy quay PHẢI giữ cảnh toàn thân và KHÔNG được phóng to hoặc cắt xén.",
+    "audio": ""
+  },
+  {
+    "scene": 2,
+    "prompt": "duration: 8 seconds.\nrealistic live-action footage, no cartoon, no illustration.\nThe first image is the product reference (Video Clone).\nSử dụng nó CHỈ cho ngoại hình của sản phẩm.\nThe second image is the character reference.\nSử dụng nó CHỈ cho ngoại hình của nhân vật.\nScene 2: Nhân vật hoàn toàn hiển thị từ đầu đến chân trong một cảnh quay toàn thân ổn định. Nhân vật xoay nhẹ sang bên phải, sau đó xoay trở lại để đối mặt về phía trước. Chỉ mô tả tư thế và chuyển động của con người. Không có đồ vật. Không có hậu cảnh. Không có chi tiết về ngoại hình. Không ngồi. Không chuyển cảnh. Không cử động miệng. Đi bộ và xoay người có thể lặp lại tự nhiên. Máy quay PHẢI giữ cảnh toàn thân và KHÔNG được phóng to hoặc cắt xén.",
+    "audio": ""
+  }
+]

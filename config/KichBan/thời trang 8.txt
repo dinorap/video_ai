@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. realistic live-action footage, no cartoon, no illustration. No audio, silent video, no background sound, no music, no voice. The first image is the product reference (Thời trang). Use it ONLY for the product's appearance. The second image is the character reference. Use it ONLY for the character's appearance. Scene 1: Camera đặt ở góc hơi thấp theo phong cách runway thời trang, luôn giữ khung hình toàn thân. Nhân vật sải bước tự tin về phía camera với biểu cảm tươi cười tự nhiên. Sau đó xoay nhẹ thân người sang trái rồi quay lại đối diện thẳng về phía trước, duy trì gương mặt rạng rỡ trong suốt chuyển động.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. realistic live-action footage, no cartoon, no illustration. No audio, silent video, no background sound, no music, no voice. The first image is the product reference (Thời trang). Use it ONLY for the product's appearance. The second image is the character reference. Use it ONLY for the character's appearance. Scene 2: Camera sử dụng góc chính diện thời trang, khung hình toàn thân ổn định. Nhân vật sải bước thẳng về phía camera, giữ nụ cười nhẹ nhàng và biểu cảm gương mặt tự nhiên, thể hiện phong thái tự tin của ngành hàng thời trang.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. realistic live-action footage, no cartoon, no illustration. No audio, silent video, no background sound, no music, no voice. The first image is the product reference (Thời trang). Use it ONLY for the product's appearance. The second image is the character reference. Use it ONLY for the character's appearance. Scene 3: Camera chuyển sang góc quay ngang theo phong cách fashion editorial, luôn giữ khung hình toàn thân. Nhân vật bước về phía trước một lần với dáng đi tự tin, sau đó xoay nhẹ người hướng về camera và mỉm cười tươi tắn. Biểu cảm gương mặt tự nhiên, tạo cảm giác sang trọng và giàu năng lượng của một TVC thời trang.",
+      "audio": ""
+    }
+]
+

@@ -1,0 +1,4 @@
+pyinstaller .\setup\installer.spec --noconfirm --clean
+pyinstaller .\setup\update.spec --noconfirm --clean
+pyinstaller .\build.spec --noconfirm --clean
+pyinstaller .\setup\uninstall.spec --noconfirm --clean

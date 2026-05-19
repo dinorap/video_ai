@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. 8K cinematic, high-fashion, live-action. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference; giữ nguyên gương mặt nhân vật xuyên suốt. Scene 1 — Full-body static shot. HÀNH ĐỘNG: Nhân vật bước tiến thẳng về phía camera với nhịp bước tự nhiên, tay đung đưa nhẹ theo nhịp, cằm hơi nâng, gương mặt mỉm cười tự nhiên. CAMERA: Full-body, đứng yên → zoom-in nhẹ 2s theo chuyển động bước → trở lại full-body.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. 8K cinematic, high-fashion, live-action. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. The second image is the character reference; giữ nguyên gương mặt. Scene 2 — Full-body tracking shot. HÀNH ĐỘNG: Nhân vật tiếp tục bước về phía trước; trong khi bước, đưa tay vuốt tóc hoặc chạm nhẹ một bên mặt theo cách tự nhiên, đường hông chuyển động mềm. CAMERA: Tracking backward giữ full-body → orbit nhẹ 45° quanh nhân vật khi vẫn lùi theo bước → trở lại hướng chính diện.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. 8K cinematic, high-fashion, live-action. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. The second image là gương mặt chuẩn của nhân vật, giữ nguyên. Scene 3 — Full-body tracking. HÀNH ĐỘNG: Nhân vật tiến gần hơn về phía camera, kết hợp chuyển động vai nhẹ và lắc tóc mềm, giữ nụ cười nhẹ và ánh mắt tự tin. CAMERA: Tracking backward theo bước đi → push-in nhẹ vào half-body 2s → kết thúc trở lại full-body rõ trang phục.",
+      "audio": ""
+    }
+]
+

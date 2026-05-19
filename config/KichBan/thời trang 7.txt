@@ -1,0 +1,18 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 1: Khởi động năng động. Camera full-body, góc thấp. Nhân vật bước nhanh, mạnh mẽ về phía camera với nụ cười tự nhiên, ánh mắt sắc bén. Vai ổn định, tay di chuyển theo nhịp catwalk thanh thoát. Camera TRACKS BACKWARD đồng bộ với bước chân, giữ toàn thân xuyên suốt.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 2: Đột phá góc nhìn. Camera full-body quay vòng 90 độ quanh nhân vật trong khi cô bước về phía trước. Nhân vật ánh mắt gợi cảm, nụ cười tự nhiên, tay nhấn nhẹ eo để nhấn mạnh silhouette. Camera TRACKS BACKWARD và ROTATE, giữ full-body liên tục, tôn lên chi tiết trang phục, không thay đổi khuôn mặt.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, high-fashion. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, giữ nguyên khuôn mặt nhân vật xuyên suốt. Scene 3: Tăng tốc và tương phản. Camera medium shot full-body. Nhân vật bước dứt khoát, nghiêng đầu nhẹ để thể hiện thái độ sắc sảo, nụ cười tự nhiên. Tay di chuyển mạnh mẽ theo nhịp, trang phục bay tự nhiên. Camera TRACKS BACKWARD nhanh hơn, giữ full-body xuyên suốt.",
+      "audio": ""
+    }
+]
+

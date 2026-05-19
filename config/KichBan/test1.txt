@@ -1,0 +1,12 @@
+﻿[
+    {
+      "scene": 1,
+      "prompt": "Full-body mirror shot, fixed mirror perspective. The model slowly walks toward the mirror in a straight line. The smartphone is a permanent accessory and must remain in the right hand for the entire duration. The right hand grip is fixed and unchanged across all frames. No switching hands. No passing hands. No grip change. No repositioning. No rotation of the phone. The phone must never disappear or move independently. The right arm pose is locked and stable with no arm swing. The left arm remains still. No hip sway. No torso twisting. No body rotation. No idle animation. No gestures. Only straight walking toward the mirror. Camera static.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "Full-body mirror shot, fixed mirror perspective. The model slowly walks backward away from the mirror in a straight line. The smartphone remains permanently in the right hand across all frames. The right hand grip stays fixed and unchanged. No switching hands. No passing hands. No grip change. No repositioning. No rotation of the phone. The phone must never disappear or detach. The right arm pose is locked and stable with no arm swing. The left arm remains still. No hip sway. No torso twisting. No body rotation. No idle animation. No gestures. Only straight walking away from the mirror. Camera static.",
+      "audio": ""
+    }
+]

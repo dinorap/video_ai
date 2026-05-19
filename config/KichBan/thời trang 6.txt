@@ -1,0 +1,23 @@
+[
+    {
+      "scene": 1,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, Vogue Editorial style. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, keeping her exact face unchanged without variation. Scene 1: Camera full-body, stable, low-angle cinematic fashion shot. Nhân vật bước tiến về phía camera với bước đi tự tin, thân người thẳng, vai ổn định. Giữ nụ cười tự nhiên, biểu cảm khuôn mặt tươi tắn xuyên suốt cảnh quay. Walking and body rotation may repeat naturally. Camera remains full-body without zoom or crop.",
+      "audio": ""
+    },
+    {
+      "scene": 2,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, Vogue Editorial style. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, keeping her exact face unchanged without variation. Scene 2: Camera full-body tracking shot, theo bước chân nhân vật. Nhân vật tiếp tục bước về phía trước với nụ cười nhẹ nhàng, biểu cảm tự nhiên. Một tay di chuyển nhẹ dọc eo hoặc hông, nhấn mạnh dáng đứng và phom dáng trang phục. Walking and body rotation may repeat naturally. Camera remains full-body without zoom or crop.",
+      "audio": ""
+    },
+    {
+      "scene": 3,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, Vogue Editorial style. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, keeping her exact face unchanged without variation. Scene 3: Camera full-body tracking shot. Nhân vật bước về phía trước, giữ nhịp catwalk tự tin, thân người thẳng, vai ổn định. Hơi nghiêng đầu, tạo biểu cảm thu hút, nụ cười tự nhiên, tóc và trang phục chuyển động nhẹ theo bước đi. Walking and body rotation may repeat naturally. Camera remains full-body without zoom or crop.",
+      "audio": ""
+    },
+    {
+      "scene": 4,
+      "prompt": "duration: 8 seconds. realistic live-action footage, cinematic 8K, Vogue Editorial style. No audio, silent video, no background sound, no music, no voice. The first image is the product reference. Use it ONLY for the product's appearance. The second image is the character reference, keeping her exact face unchanged without variation. Scene 4: Camera full-body → tight-medium push-in, vẫn duy trì toàn thân. Nhân vật tiến sát ống kính nhưng bước đi liên tục, giữ nụ cười tự nhiên, biểu cảm khuôn mặt tươi tắn xuyên suốt cảnh. Camera theo dõi chuyển động liên tục, nhấn mạnh sự sang trọng và năng lượng high-fashion của nhân vật.",
+      "audio": ""
+    }
+]
+
