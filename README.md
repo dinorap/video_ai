@@ -1,5 +1,6 @@
 CÁCH CÀI ĐẶT LẦN ĐẦU 
 B1. DI CHUYỂN VÀO THƯ MỤC DỰ ÁN
+
 B2. CHẠY LẦN LƯỢT CÁC LỆNH SAU 
 python -m venv venv
 venv\Scripts\activate
