@@ -941,15 +941,26 @@ function initResultFolderBindings() {
 function toggleGrokDurationVisibility() {
     const modelSelect = document.getElementById('model-select');
     const durationContainer = document.getElementById('grok-duration-container');
+    const veo3ImageModelContainer = document.getElementById('veo3-image-model-container');
+    const veo3VideoQualityContainer = document.getElementById('veo3-video-quality-container');
     const qualitySelect = document.getElementById('video-quality-select');
 
     if (!modelSelect || !durationContainer) return;
 
     const selectedModel = modelSelect.options[modelSelect.selectedIndex].textContent;
     const isGrok = selectedModel && selectedModel.toLowerCase().includes('grok');
+    const isVeo3 = selectedModel && selectedModel.toLowerCase().includes('veo3');
 
-    // Show/hide duration selector
+    // Show/hide duration selector (only for Grok)
     durationContainer.style.display = isGrok ? 'block' : 'none';
+
+    // Show/hide Veo3 model selectors (only for Veo3)
+    if (veo3ImageModelContainer) {
+        veo3ImageModelContainer.style.display = isVeo3 ? 'block' : 'none';
+    }
+    if (veo3VideoQualityContainer) {
+        veo3VideoQualityContainer.style.display = isVeo3 ? 'block' : 'none';
+    }
 
     // Update quality options based on model
     if (qualitySelect) {
@@ -970,6 +981,20 @@ function toggleGrokDurationVisibility() {
 
             // Set default to 720p for Grok
             qualitySelect.value = '720p';
+        } else if (isVeo3) {
+            // Veo3 supports 1080p and 720p
+            const option1080 = document.createElement('option');
+            option1080.value = '1080p';
+            option1080.textContent = '1080p';
+            qualitySelect.appendChild(option1080);
+
+            const option720 = document.createElement('option');
+            option720.value = '720p';
+            option720.textContent = '720p';
+            qualitySelect.appendChild(option720);
+
+            // Default to 1080p for Veo3
+            qualitySelect.value = '1080p';
         } else {
             // Other models support 1080p and 720p
             const option1080 = document.createElement('option');

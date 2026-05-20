@@ -30,10 +30,154 @@ def open_profile(provider: str):
         return
         
     if p in ["veo3", "veo3 (google)", "google"]:
-        setting_veo3_profile()
+        # Veo3: Open Chrome + extract auth data
+        setup_veo3_profile_with_auth()
         return
 
     print(f"Provider not supported: {provider}")
+
+
+def setup_veo3_profile_with_auth():
+    """
+    Thiết lập profile Veo3:
+    1. Mở Chrome tới Flow (dùng chính Chrome profile của Grok)
+    2. Kết nối qua CDP
+    3. Trích xuất auth data (sessionId, projectId, access_token)
+    4. Lưu vào config/veo_auth.json
+    """
+    import os
+    import sys
+    import json
+    import time
+    
+    # 1. Mở Chrome tới Flow
+    print("[Veo3 Setup] 🚀 Đang mở Chrome...")
+    setting_veo3_profile()
+    
+    # 2. Đợi Chrome khởi động
+    time.sleep(3)
+    
+    # 3. Kết nối qua CDP và trích xuất auth
+    async def _extract_auth_async():
+        from playwright.async_api import async_playwright
+        from utils.veo3.veo_get_token import auto_collect_veo_auth_from_flow
+        
+        # Lấy CDP port từ config
+        base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'config', 'config.json')
+        cdp_port = 9222
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+                    cdp_port = cfg.get('CDP_PORT', 9222)
+        except Exception:
+            pass
+        
+        print(f"[Veo3 Setup] 🔌 Kết nối CDP qua port {cdp_port}...")
+        
+        playwright = None
+        browser = None
+        try:
+            playwright = await async_playwright().start()
+            browser = await playwright.chromium.connect_over_cdp(
+                f'http://127.0.0.1:{cdp_port}',
+                timeout=15000
+            )
+            
+            # Lấy context và page hiện tại
+            if not browser.contexts or len(browser.contexts) == 0:
+                print("[Veo3 Setup] ❌ Không tìm thấy browser context")
+                return False
+            
+            context = browser.contexts[0]
+            pages = context.pages
+            
+            if not pages or len(pages) == 0:
+                print("[Veo3 Setup] ❌ Không tìm thấy page nào")
+                return False
+            
+            # Tìm page có URL Flow
+            page = None
+            for p in pages:
+                try:
+                    url = p.url
+                    if 'labs.google' in url and 'flow' in url:
+                        page = p
+                        break
+                except Exception:
+                    continue
+            
+            if not page:
+                # Nếu không tìm thấy, dùng page đầu tiên và navigate
+                page = pages[0]
+                print("[Veo3 Setup] 📍 Điều hướng tới Flow...")
+                try:
+                    await page.goto('https://labs.google/fx/vi/tools/flow', wait_until='networkidle', timeout=30000)
+                except Exception as e:
+                    print(f"[Veo3 Setup] ⚠️ Lỗi điều hướng: {e}")
+            
+            print("[Veo3 Setup] 🔍 Đang trích xuất auth data...")
+            print("[Veo3 Setup] ℹ️  Vui lòng đợi trong khi hệ thống tự động:")
+            print("[Veo3 Setup]    1. Nhập prompt test")
+            print("[Veo3 Setup]    2. Click nút Tạo")
+            print("[Veo3 Setup]    3. Bắt request để lấy auth token")
+            
+            # Gọi hàm trích xuất auth (profile_id = "default")
+            auth_data = await auto_collect_veo_auth_from_flow(
+                page,
+                profile_id="default",
+                timeout_s=60
+            )
+            
+            if auth_data:
+                print("[Veo3 Setup] ✅ Đã trích xuất auth data thành công!")
+                print(f"[Veo3 Setup]    - Session ID: {auth_data.get('sessionId', '')[:20]}...")
+                print(f"[Veo3 Setup]    - Project ID: {auth_data.get('projectId', '')}")
+                print(f"[Veo3 Setup]    - Access Token: {auth_data.get('access_token', '')[:30]}...")
+                return True
+            else:
+                print("[Veo3 Setup] ❌ Không thể trích xuất auth data")
+                print("[Veo3 Setup] ℹ️  Vui lòng thử lại hoặc kiểm tra:")
+                print("[Veo3 Setup]    - Đã đăng nhập Google chưa?")
+                print("[Veo3 Setup]    - Trang Flow có load được không?")
+                return False
+                
+        except Exception as e:
+            print(f"[Veo3 Setup] ❌ Lỗi: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        finally:
+            # Không đóng browser vì đang dùng chung với Grok
+            if browser:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+            if playwright:
+                try:
+                    await playwright.stop()
+                except Exception:
+                    pass
+    
+    # Chạy async function
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            success = loop.run_until_complete(_extract_auth_async())
+            if success:
+                print("[Veo3 Setup] 🎉 Hoàn tất thiết lập profile Veo3!")
+            else:
+                print("[Veo3 Setup] ⚠️  Thiết lập chưa hoàn tất, vui lòng thử lại")
+        finally:
+            loop.close()
+    except Exception as e:
+        print(f"[Veo3 Setup] ❌ Lỗi: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 class _GlobalBrowser:

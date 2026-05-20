@@ -1164,21 +1164,34 @@ function initTaoVideoPage() {
             }
         }
 
+        // Get Veo3 video quality if Veo3 is selected
+        let veo3_video_quality = null;
+        if (provider === 'Veo3') {
+            const veo3QualitySelect = document.getElementById('veo3-video-quality');
+            if (veo3QualitySelect) {
+                veo3_video_quality = String(veo3QualitySelect.value || 'fast').trim();
+            }
+        }
+
         try {
+            const payload = {
+                provider,
+                out_dir_label,
+                max_tabs,
+                ratio,
+                quality,
+                music_url,
+                music_name,
+                grok_duration,
+                tasks: [task],
+            };
+            if (veo3_video_quality) {
+                payload.veo3_video_quality = veo3_video_quality;
+            }
             const res = await fetch('/create_videos_batch_start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    provider,
-                    out_dir_label,
-                    max_tabs,
-                    ratio,
-                    quality,
-                    music_url,
-                    music_name,
-                    grok_duration,
-                    tasks: [task],
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data || data.ok !== true) {

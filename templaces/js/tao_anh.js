@@ -20,7 +20,7 @@ function _throttle(fn, waitMs) {
         if (t) return;
         t = setTimeout(() => {
             t = null;
-            try { fn.apply(null, lastArgs); } catch (e) {}
+            try { fn.apply(null, lastArgs); } catch (e) { }
         }, Math.max(0, parseInt(String(waitMs || 0), 10) || 0));
     };
 }
@@ -50,11 +50,11 @@ const _persistTaoAnhStateThrottled = _throttle(() => {
         });
 
         localStorage.setItem(_imageStorageKey(), JSON.stringify({ forms: items }));
-    } catch (e) {}
+    } catch (e) { }
 }, 350);
 
 function _persistTaoAnhStateNow() {
-    try { _persistTaoAnhStateThrottled(); } catch (e) {}
+    try { _persistTaoAnhStateThrottled(); } catch (e) { }
 }
 
 function _setCreateBtnState(root, isRunning) {
@@ -63,7 +63,7 @@ function _setCreateBtnState(root, isRunning) {
         if (!genBtn) return;
         genBtn.dataset.running = isRunning ? '1' : '0';
         genBtn.textContent = isRunning ? 'Hủy' : 'Tạo';
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function _createImageForm({ characterSrc, characterName }) {
@@ -194,14 +194,14 @@ function _createImageForm({ characterSrc, characterName }) {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ task_id: existingTaskId }),
                     });
-                } catch (e) {}
+                } catch (e) { }
 
                 try {
                     if (window._singleImagePollers && window._singleImagePollers[existingTaskId]) {
                         clearInterval(window._singleImagePollers[existingTaskId]);
                         delete window._singleImagePollers[existingTaskId];
                     }
-                } catch (e) {}
+                } catch (e) { }
 
                 root.dataset.taskId = '';
                 _setCreateBtnState(root, false);
@@ -228,7 +228,7 @@ function _createImageForm({ characterSrc, characterName }) {
                     promptEl.addEventListener('input', () => _persistTaoAnhStateNow());
                     promptEl.addEventListener('change', () => _persistTaoAnhStateNow());
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             const task = {
                 form_id: String(root.dataset.formId || '').trim(),
@@ -242,6 +242,15 @@ function _createImageForm({ characterSrc, characterName }) {
 
             const aspectSelect = document.getElementById('aspect_ratio');
             const ratio = aspectSelect ? String(aspectSelect.value || '9:16').trim() : '9:16';
+
+            // Read Veo3 image model if provider is Veo3
+            let veo3_image_model = null;
+            if (provider === 'Veo3') {
+                const veo3ModelSelect = document.getElementById('veo3-image-model');
+                if (veo3ModelSelect) {
+                    veo3_image_model = String(veo3ModelSelect.value || '🍌 Nano Banana Pro').trim();
+                }
+            }
 
             const resultFolderLabel = document.getElementById('resultFolderLabel');
             const out_dir_label = resultFolderLabel ? String(resultFolderLabel.textContent || '').trim() : '';
@@ -280,10 +289,20 @@ function _createImageForm({ characterSrc, characterName }) {
             _persistTaoAnhStateNow();
 
             try {
-                const res = await fetch('/create_images_batch_start', {
+                const payload = { provider, out_dir_label, max_tabs, ratio, tasks: [task] };
+                if (veo3_image_model) {
+                    payload.veo3_image_model = veo3_image_model;
+                }
+
+                // Route to correct endpoint based on provider
+                const endpoint = (provider === 'Veo3' || provider === 'Veo3 (Google)')
+                    ? '/create_images_veo3'
+                    : '/create_images_batch_start';
+
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider, out_dir_label, max_tabs, ratio, tasks: [task] }),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data || data.ok !== true) {
@@ -358,7 +377,7 @@ function _createImageForm({ characterSrc, characterName }) {
                                 delete window._singleImagePollers[tid];
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 };
 
                 await pollOnce();
@@ -504,25 +523,25 @@ function _showErrorOverlay(message) {
         background: rgba(0,0,0,0.85); display: flex; align-items: center;
         justify-content: center; z-index: 10000; color: white; font-family: sans-serif;
     `;
-    
+
     const content = document.createElement('div');
     content.style.cssText = `
         background: #222; padding: 30px; border-radius: 12px;
         max-width: 500px; width: 90%; text-align: center;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #444;
     `;
-    
+
     const title = document.createElement('h2');
     title.innerText = '⚠️ CẦN THIẾT LẬP TRÌNH DUYỆT';
     title.style.color = '#ff4d4d';
     title.style.marginBottom = '20px';
-    
+
     const msg = document.createElement('p');
     msg.innerText = message;
     msg.style.lineHeight = '1.6';
     msg.style.fontSize = '16px';
     msg.style.marginBottom = '25px';
-    
+
     const btn = document.createElement('button');
     btn.innerText = 'ĐÃ HIỂU';
     btn.style.cssText = `
@@ -531,7 +550,7 @@ function _showErrorOverlay(message) {
         font-weight: bold; transition: background 0.2s;
     `;
     btn.onclick = () => document.body.removeChild(overlay);
-    
+
     content.appendChild(title);
     content.appendChild(msg);
     content.appendChild(btn);
@@ -588,7 +607,7 @@ function initTaoAnhPage() {
                         return;
                     }
                     root.remove();
-                } catch (e) {}
+                } catch (e) { }
             });
             _persistTaoAnhStateNow();
         };
@@ -609,7 +628,7 @@ function initTaoAnhPage() {
                     try {
                         if (it.formId) formEl.dataset.formId = String(it.formId);
                         if (it.taskId) formEl.dataset.taskId = String(it.taskId);
-                    } catch (e) {}
+                    } catch (e) { }
 
                     // product image
                     try {
@@ -624,7 +643,7 @@ function initTaoAnhPage() {
                                 prodBox.appendChild(img);
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
 
                     // prompt
                     try {
@@ -637,7 +656,7 @@ function initTaoAnhPage() {
                                 promptEl.addEventListener('change', () => _persistTaoAnhStateNow());
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
 
                     // restore result
                     try {
@@ -653,14 +672,14 @@ function initTaoAnhPage() {
                                 box.appendChild(img);
                             }
                         }
-                    } catch (e) {}
+                    } catch (e) { }
 
                     // restore running state (best-effort)
                     try {
                         if (it.running && it.taskId) {
                             _setCreateBtnState(formEl, true);
                         }
-                    } catch (e) {}
+                    } catch (e) { }
 
                     displayArea.appendChild(formEl);
 
@@ -713,25 +732,25 @@ function initTaoAnhPage() {
                                         }
                                         _persistTaoAnhStateNow();
                                     }
-                                } catch (e) {}
+                                } catch (e) { }
                             };
                             pollOnce();
                             window._singleImagePollers[tid] = setInterval(pollOnce, 1200);
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 });
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
         if (!window.__taoAnhPersistBound) {
             window.__taoAnhPersistBound = true;
             window.addEventListener('beforeunload', () => {
-                try { _persistTaoAnhStateNow(); } catch (e) {}
+                try { _persistTaoAnhStateNow(); } catch (e) { }
             });
         }
-    } catch (e) {}
+    } catch (e) { }
 
     const promptAllBtn = document.getElementById('btn-input-prompt-image-all');
     if (promptAllBtn) {
@@ -747,19 +766,19 @@ function initTaoAnhPage() {
             if (_createImagesRunning) {
                 _createImagesRunning = false;
                 if (_createImagesPollingTimer) {
-                    try { clearInterval(_createImagesPollingTimer); } catch (e) {}
+                    try { clearInterval(_createImagesPollingTimer); } catch (e) { }
                     _createImagesPollingTimer = null;
                 }
                 _createImagesPending = null;
 
                 if (_createImagesAbortController) {
-                    try { _createImagesAbortController.abort(); } catch (e) {}
+                    try { _createImagesAbortController.abort(); } catch (e) { }
                     _createImagesAbortController = null;
                 }
 
                 try {
                     await fetch('/cancel_create_images_batch', { method: 'POST' });
-                } catch (e) {}
+                } catch (e) { }
 
                 generateAllBtn.textContent = 'Tạo Tất Cả';
                 return;
@@ -797,6 +816,15 @@ function initTaoAnhPage() {
 
             const aspectSelect = document.getElementById('aspect_ratio');
             const ratio = aspectSelect ? String(aspectSelect.value || '9:16').trim() : '9:16';
+
+            // Read Veo3 image model if provider is Veo3
+            let veo3_image_model = null;
+            if (provider === 'Veo3') {
+                const veo3ModelSelect = document.getElementById('veo3-image-model');
+                if (veo3ModelSelect) {
+                    veo3_image_model = String(veo3ModelSelect.value || 'Nano Banana pro').trim();
+                }
+            }
 
             const resultFolderLabel = document.getElementById('resultFolderLabel');
             const out_dir_label = resultFolderLabel ? String(resultFolderLabel.textContent || '').trim() : '';
@@ -842,12 +870,22 @@ function initTaoAnhPage() {
             generateAllBtn.textContent = 'Dừng';
 
             try {
-                const res = await fetch('/create_images_batch_start', {
+                const payload = { provider, out_dir_label, max_tabs, ratio, tasks };
+                if (veo3_image_model) {
+                    payload.veo3_image_model = veo3_image_model;
+                }
+
+                // Route to correct endpoint based on provider
+                const endpoint = (provider === 'Veo3' || provider === 'Veo3 (Google)')
+                    ? '/create_images_veo3'
+                    : '/create_images_batch_start';
+
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ provider, out_dir_label, max_tabs, ratio, tasks }),
+                    body: JSON.stringify(payload),
                     signal: _createImagesAbortController.signal,
                 });
 
@@ -874,7 +912,7 @@ function initTaoAnhPage() {
                     const pendingTaskIds = Object.keys(_createImagesPending);
                     if (pendingTaskIds.length === 0) {
                         if (_createImagesPollingTimer) {
-                            try { clearInterval(_createImagesPollingTimer); } catch (e) {}
+                            try { clearInterval(_createImagesPollingTimer); } catch (e) { }
                             _createImagesPollingTimer = null;
                         }
                         _createImagesPending = null;

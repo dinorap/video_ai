@@ -1808,6 +1808,9 @@ def create_images_batch():
         max_tabs = payload.get('max_tabs', 5)
         ratio = str(payload.get('ratio') or '9:16').strip()
         tasks = payload.get('tasks')
+        
+        # Veo3-specific parameters
+        veo3_image_model = str(payload.get('veo3_image_model') or '').strip()
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
@@ -2082,6 +2085,380 @@ def _maybe_apply_silent_update_on_startup() -> None:
         _force_exit_later(0.4)
     except Exception:
         pass
+
+
+# ============================================================================
+# VEO3 API ENDPOINTS
+# ============================================================================
+
+@app.route('/veo3_profiles', methods=['GET'])
+def veo3_profiles_handler():
+    """Lấy danh sách profiles Veo3 từ config/veo_auth.json"""
+    try:
+        from utils.veo3_profile import load_veo3_profiles
+        profiles = load_veo3_profiles()
+        
+        # Trả về danh sách profiles (ẩn thông tin nhạy cảm)
+        safe_profiles = []
+        for profile in profiles:
+            safe_profiles.append({
+                'name': profile.get('name', 'unknown'),
+                'project_url': profile.get('project_url', ''),
+                'updated_at': profile.get('updated_at', 0),
+                'has_auth': bool(profile.get('sessionId') and profile.get('projectId') and profile.get('access_token')),
+            })
+        
+        return jsonify({'ok': True, 'profiles': safe_profiles})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/create_images_veo3', methods=['POST'])
+def create_images_veo3_handler():
+    """Tạo ảnh qua Veo3 API - tương tự create_images_batch nhưng dùng Veo3"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        out_dir_label = str(payload.get('out_dir_label') or '')
+        max_tabs = payload.get('max_tabs', 3)
+        ratio = str(payload.get('ratio') or '16:9').strip()
+        tasks = payload.get('tasks')
+        profile_name = payload.get('profile_name')  # Optional: chọn profile cụ thể
+        veo3_image_model = str(payload.get('veo3_image_model') or 'Nano Banana pro').strip()
+
+        if not isinstance(tasks, list) or len(tasks) == 0:
+            return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
+        
+        # CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo ảnh Veo3
+        # Veo3 cần kết nối qua CDP để điều khiển browser
+        from utils.control_profile import init_global_browser
+        try:
+            print("[Veo3 API] 🚀 Đảm bảo Chrome đã khởi động với CDP...")
+            init_global_browser(provider='grok', kind='default')
+            print("[Veo3 API] ✅ Chrome đã sẵn sàng")
+        except Exception as e:
+            return jsonify({'ok': False, 'error': f'Không thể khởi động Chrome với CDP: {str(e)}'}), 500
+
+        # Xác định thư mục output
+        if os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label):
+            out_folder_abs = out_dir_label
+            is_custom_dir = True
+        else:
+            folder = _safe_folder_name(out_dir_label)
+            batch_id = uuid.uuid4().hex[:8]
+            out_folder_rel = os.path.join(folder, batch_id)
+            out_folder_abs = os.path.join(GENERATED_DIR, out_folder_rel)
+            os.makedirs(out_folder_abs, exist_ok=True)
+            is_custom_dir = False
+
+        runner_tasks = []
+        mapping = []
+
+        for t in tasks:
+            form_id = str((t or {}).get('form_id') or '').strip()
+            prompt = str((t or {}).get('prompt') or '')
+            # 🔥 FIX: Frontend gửi image1/image2, không phải reference_image
+            image1_data = str((t or {}).get('image1') or '')
+            image2_data = str((t or {}).get('image2') or '')
+
+            if not form_id or not prompt:
+                continue
+
+            out_name = f'{form_id}_{uuid.uuid4().hex[:4]}.png'
+            out_abs = os.path.join(out_folder_abs, out_name)
+
+            # Tạo task tracking
+            try:
+                from utils.control_script import create_image_task
+                task_id = create_image_task(f'Tạo ảnh Veo3: {out_name}', 'Veo3')
+            except Exception:
+                task_id = ''
+
+            if task_id:
+                mapping.append({'form_id': form_id, 'task_id': task_id})
+
+            # Xử lý reference image từ image1 (ưu tiên) hoặc image2
+            reference_image_path = None
+            reference_data = image1_data if image1_data else image2_data
+            
+            if reference_data and reference_data.startswith('data:image'):
+                try:
+                    # Decode base64 và lưu vào file tạm
+                    import base64
+                    b64_part = reference_data.split(',', 1)[1]
+                    img_bytes = base64.b64decode(b64_part)
+                    
+                    temp_ref = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+                    temp_ref.write(img_bytes)
+                    temp_ref.close()
+                    reference_image_path = temp_ref.name
+                    print(f"[Veo3] ✅ Đã decode reference image từ localStorage: {len(img_bytes)} bytes")
+                except Exception as e:
+                    print(f"[Veo3] ⚠️ Lỗi xử lý reference image: {e}")
+
+            # 🔥 FIX: Upload CẢ 2 ảnh nếu có (image1 VÀ image2)
+            reference_images = []
+            
+            # Xử lý image1
+            if image1_data and image1_data.startswith('data:image'):
+                try:
+                    import base64
+                    b64_part = image1_data.split(',', 1)[1]
+                    img_bytes = base64.b64decode(b64_part)
+                    
+                    temp_ref1 = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+                    temp_ref1.write(img_bytes)
+                    temp_ref1.close()
+                    reference_images.append(temp_ref1.name)
+                    print(f"[Veo3] ✅ Đã decode image1: {len(img_bytes)} bytes")
+                except Exception as e:
+                    print(f"[Veo3] ⚠️ Lỗi xử lý image1: {e}")
+            
+            # Xử lý image2
+            if image2_data and image2_data.startswith('data:image'):
+                try:
+                    import base64
+                    b64_part = image2_data.split(',', 1)[1]
+                    img_bytes = base64.b64decode(b64_part)
+                    
+                    temp_ref2 = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+                    temp_ref2.write(img_bytes)
+                    temp_ref2.close()
+                    reference_images.append(temp_ref2.name)
+                    print(f"[Veo3] ✅ Đã decode image2: {len(img_bytes)} bytes")
+                except Exception as e:
+                    print(f"[Veo3] ⚠️ Lỗi xử lý image2: {e}")
+            
+            print(f"[Veo3] 📊 Tổng số ảnh reference: {len(reference_images)}")
+
+            runner_tasks.append({
+                'form_id': form_id,
+                'task_id': task_id,
+                'prompt': prompt,
+                'out': out_abs,
+                'ratio': ratio,
+                'reference_images': reference_images,  # 🔥 Đổi từ reference_image (singular) sang reference_images (plural list)
+                'profile_name': profile_name or t.get('profile_name'),
+                'model': veo3_image_model,
+                'is_custom_dir': is_custom_dir,
+                'out_name': out_name,
+                'out_folder_rel': out_folder_rel if not is_custom_dir else None
+            })
+
+        if len(runner_tasks) == 0:
+            return jsonify({'ok': False, 'error': 'No valid tasks'}), 400
+
+        from utils.control_creat_image_veo3 import run_tasks_veo3
+
+        # Each batch gets its own cancel event
+        cancel_event = threading.Event()
+
+        async def _run_veo3_async():
+            try:
+                await run_tasks_veo3(
+                    context={},  # Veo3 không cần global browser context
+                    tasks=runner_tasks,
+                    max_tabs=max_tabs,
+                    cancel_event=cancel_event,
+                )
+            finally:
+                # Cleanup temp reference images
+                for task in runner_tasks:
+                    ref_path = task.get('reference_image')
+                    if ref_path and os.path.exists(ref_path):
+                        try:
+                            os.remove(ref_path)
+                        except Exception:
+                            pass
+
+        # Run in new event loop (Veo3 tự quản lý browser)
+        def _run_in_thread():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(_run_veo3_async())
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=_run_in_thread, daemon=True)
+        thread.start()
+
+        batch_key = uuid.uuid4().hex[:10]
+        # Store batch info (simplified - không cần future vì chạy trong thread riêng)
+        with _ASYNC_IMAGE_BATCHES_LOCK:
+            _ASYNC_IMAGE_BATCHES[batch_key] = {
+                'provider': 'Veo3',
+                'thread': thread,
+                'cancel_event': cancel_event,
+                'tasks': runner_tasks,
+            }
+
+        return jsonify({
+            'ok': True,
+            'batch_id': batch_key,
+            'tasks': mapping,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/create_videos_veo3', methods=['POST'])
+def create_videos_veo3_handler():
+    """Tạo video qua Veo3 API - tương tự create_videos_batch nhưng dùng Veo3"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        out_dir_label = str(payload.get('out_dir_label') or '')
+        max_tabs = payload.get('max_tabs', 2)
+        ratio = str(payload.get('ratio') or '16:9').strip()
+        duration = str(payload.get('duration') or '6s').strip()
+        account_type = str(payload.get('account_type') or 'ULTRA').strip()
+        tasks = payload.get('tasks')
+        profile_name = payload.get('profile_name')
+        
+        # Veo3-specific parameters
+        veo3_video_quality = str(payload.get('veo3_video_quality') or 'fast').strip()
+
+        if not isinstance(tasks, list) or len(tasks) == 0:
+            return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
+
+        # Xác định thư mục output
+        if os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label):
+            out_folder_abs = out_dir_label
+            is_custom_dir = True
+        else:
+            folder = _safe_folder_name(out_dir_label)
+            batch_id = uuid.uuid4().hex[:8]
+            out_folder_rel = os.path.join(folder, batch_id)
+            out_folder_abs = os.path.join(GENERATED_DIR, out_folder_rel)
+            os.makedirs(out_folder_abs, exist_ok=True)
+            is_custom_dir = False
+
+        runner_tasks = []
+        mapping = []
+
+        for t in tasks:
+            form_id = str((t or {}).get('form_id') or '').strip()
+            scenes = t.get('scenes', [])
+
+            if not form_id or not isinstance(scenes, list) or len(scenes) == 0:
+                continue
+
+            # Veo3 video: mỗi scene = 1 video riêng
+            for idx, scene in enumerate(scenes):
+                image_data = str((scene or {}).get('image') or '')
+                prompt = str((scene or {}).get('prompt') or '')
+
+                if not image_data or not prompt:
+                    continue
+
+                out_name = f'{form_id}_scene{idx}_{uuid.uuid4().hex[:4]}.mp4'
+                out_abs = os.path.join(out_folder_abs, out_name)
+
+                # Tạo task tracking
+                try:
+                    from utils.control_script import create_video_task
+                    task_id = create_video_task(f'Tạo video Veo3: {out_name}', 'Veo3')
+                except Exception:
+                    task_id = ''
+
+                if task_id:
+                    mapping.append({'form_id': form_id, 'scene_idx': idx, 'task_id': task_id})
+
+                # Decode image data và lưu vào file tạm
+                image_path = None
+                if image_data.startswith('data:image'):
+                    try:
+                        import base64
+                        b64_part = image_data.split(',', 1)[1]
+                        img_bytes = base64.b64decode(b64_part)
+                        
+                        temp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+                        temp_img.write(img_bytes)
+                        temp_img.close()
+                        image_path = temp_img.name
+                    except Exception as e:
+                        print(f"[Veo3] ⚠️ Lỗi xử lý image: {e}")
+                        continue
+
+                runner_tasks.append({
+                    'form_id': form_id,
+                    'scene_idx': idx,
+                    'task_id': task_id,
+                    'image_path': image_path,
+                    'prompt': prompt,
+                    'out': out_abs,
+                    'ratio': ratio,
+                    'duration': duration,
+                    'quality': veo3_video_quality,
+                    'account_type': account_type,
+                    'profile_name': profile_name or t.get('profile_name'),
+                    'is_custom_dir': is_custom_dir,
+                    'out_name': out_name,
+                    'out_folder_rel': out_folder_rel if not is_custom_dir else None
+                })
+
+        if len(runner_tasks) == 0:
+            return jsonify({'ok': False, 'error': 'No valid tasks'}), 400
+
+        from utils.control_creat_video_veo3 import run_video_tasks_veo3
+
+        cancel_event = threading.Event()
+
+        async def _run_veo3_video_async():
+            try:
+                await run_video_tasks_veo3(
+                    context={},
+                    tasks=runner_tasks,
+                    max_tabs=max_tabs,
+                    cancel_event=cancel_event,
+                )
+            finally:
+                # Cleanup temp image files
+                for task in runner_tasks:
+                    img_path = task.get('image_path')
+                    if img_path and os.path.exists(img_path):
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+
+        def _run_in_thread():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(_run_veo3_video_async())
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=_run_in_thread, daemon=True)
+        thread.start()
+
+        batch_key = uuid.uuid4().hex[:10]
+        with _ASYNC_VIDEO_BATCHES_LOCK:
+            _ASYNC_VIDEO_BATCHES[batch_key] = {
+                'provider': 'Veo3',
+                'thread': thread,
+                'cancel_event': cancel_event,
+                'tasks': runner_tasks,
+            }
+
+        return jsonify({
+            'ok': True,
+            'batch_id': batch_key,
+            'tasks': mapping,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# END VEO3 API ENDPOINTS
+# ============================================================================
 
 
 if __name__ == "__main__":
