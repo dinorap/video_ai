@@ -182,3 +182,8 @@ utils/__pycache__/
 utils/grok/__pycache__/
 !setup/*.spec
 !*.spec
+utils/config/veo_auth.json
+
+*.token
+
+.env
