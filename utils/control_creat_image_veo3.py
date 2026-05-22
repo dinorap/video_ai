@@ -249,21 +249,24 @@ async def create_image_veo3(
                         print(f"[Veo3 Image] ⚠️ [{idx+1}/{len(images_to_upload)}] Upload thất bại: {error_msg}")
                 
                 print(f"[Veo3 Image] 📊 Tổng kết: Upload thành công {len(media_ids)}/{len(images_to_upload)} ảnh")
-                    
+                        
             except Exception as e:
                 print(f"[Veo3 Image] ⚠️ Upload ảnh tham chiếu thất bại: {e}")
         
-        # 8. Bắt recaptcha token (prompt "a" đã được gửi trong setup_render_settings)
+        # 8. Gửi prompt "a" và bắt recaptcha token (SAU KHI UPLOAD XONG)
         if cancel_event and cancel_event.is_set():
             raise asyncio.CancelledError("Task đã bị hủy")
         
-        print(f"[Veo3 Image] 🎯 Đợi bắt recaptcha token...")
+        print(f"[Veo3 Image] 🎯 Gửi prompt 'a' và đợi bắt recaptcha token...")
         
-        # Gọi fetch_recaptcha_token_via_page để bắt token
-        # (prompt "a" đã được gửi trong setup_render_settings ở bước 6)
+        # Gọi fetch_recaptcha_token_via_page - hàm này sẽ tự động:
+        # 1. Setup listeners để bắt token
+        # 2. Gửi prompt "a" vào input và nhấn Enter
+        # 3. Đợi bắt token từ /recaptcha/enterprise/reload
+        # 4. Trả về token
         recaptcha_token = await fetch_recaptcha_token_via_page(
             page,
-            prompt_for_token="a",  # Không dùng nữa, chỉ giữ để tương thích
+            prompt_for_token="a",  # Gửi prompt "a" để trigger token
             timeout=30,
         )
         
@@ -334,7 +337,7 @@ async def create_image_veo3(
             else:
                 raise ValueError(f"API tạo ảnh thất bại: {error_msg}")
         
-        # Parse response để lấy URL download
+        # 10. Parse response để lấy URL download
         body = api_response.get("body", "")
         media_list = parse_media_from_response(body)
         
@@ -348,7 +351,7 @@ async def create_image_veo3(
         
         print(f"[Veo3 Image] 📥 Downloading ảnh từ {download_url[:80]}...")
         
-        # 10. Download ảnh
+        # 11. Download ảnh
         try:
             response = requests.get(download_url, timeout=30)
             if response.status_code == 200:

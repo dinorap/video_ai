@@ -1216,6 +1216,11 @@ def create_videos_batch_start():
 
         payload = request.get_json(silent=True) or {}
         provider = str(payload.get('provider') or '').strip()
+        
+        # 🔥 Route to Veo3 handler if provider contains "Veo3"
+        if 'Veo3' in provider or 'veo3' in provider.lower():
+            print(f"[create_videos_batch_start] ✅ Routing to Veo3 handler (provider: '{provider}')...")
+            return create_videos_veo3_handler()
         out_dir_label = str(payload.get('out_dir_label') or '')
         # Normalize common issues from UI labels (quotes/hidden chars/newlines)
         out_dir_label = out_dir_label.replace('\u200e', '').replace('\u200f', '').replace('\ufeff', '')
@@ -2322,6 +2327,16 @@ def create_videos_veo3_handler():
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
+        
+        # 🔥 CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo video Veo3
+        # Veo3 cần kết nối qua CDP để điều khiển browser
+        from utils.control_profile import init_global_browser
+        try:
+            print("[Veo3 Video API] 🚀 Đảm bảo Chrome đã khởi động với CDP...")
+            init_global_browser(provider='grok', kind='default')
+            print("[Veo3 Video API] ✅ Chrome đã sẵn sàng")
+        except Exception as e:
+            return jsonify({'ok': False, 'error': f'Không thể khởi động Chrome với CDP: {str(e)}'}), 500
 
         # Xác định thư mục output
         if os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label):

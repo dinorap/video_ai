@@ -1166,10 +1166,11 @@ function initTaoVideoPage() {
 
         // Get Veo3 video quality if Veo3 is selected
         let veo3_video_quality = null;
-        if (provider === 'Veo3') {
+        if (provider && (provider.includes('Veo3') || provider.includes('veo3'))) {
             const veo3QualitySelect = document.getElementById('veo3-video-quality');
             if (veo3QualitySelect) {
-                veo3_video_quality = String(veo3QualitySelect.value || 'fast').trim();
+                veo3_video_quality = String(veo3QualitySelect.value || 'Veo 3.1 - Lite [Lower Priority]').trim();
+                console.log('[Veo3 Video] 🔍 DEBUG: veo3_video_quality from frontend:', veo3_video_quality);
             }
         }
 

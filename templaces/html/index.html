@@ -59,7 +59,8 @@
                     <!-- <option style="display: none;">Kling AI</option> -->
                 </select>
             </div>
-            <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon" src="/ico/settings.png" alt=""> THIẾT LẬP TÀI KHOẢN</button>
+            <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon" src="/ico/settings.png"
+                    alt=""> THIẾT LẬP TÀI KHOẢN</button>
         </div>
 
         <div class="section-title"><img class="section-icon" src="/ico/setting-lines.png" alt=""> Cấu hình chạy</div>
@@ -88,6 +89,32 @@
                     <option value="10s">10 giây</option>
                 </select>
             </div>
+
+            <div id="veo3-image-model-container" style="display: none;">
+                <span class="label">Model tạo ảnh (Veo3)</span>
+                <select class="input-control" id="veo3-image-model">
+                    <option value="🍌 Nano Banana Pro" selected>🍌 Nano Banana Pro</option>
+                    <option value="🍌 Nano Banana 2">🍌 Nano Banana 2</option>
+                    <option value="Imagen 4">Imagen 4</option>
+                </select>
+            </div>
+
+            <div id="veo3-video-quality-container" style="display: none;">
+                <span class="label">Model tạo video</span>
+                <select class="input-control" id="veo3-video-quality">
+                    <option value="Veo 3.1 - Lite [Lower Priority]" selected>Veo 3.1 - Lite [Lower Priority]</option>
+                    <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
+                    <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
+                    <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
+                </select>
+            </div>
+
+            <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
+                <i class="fas fa-folder-open"></i>
+                <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
+            </button>
+            <!-- input ẩn dùng để chọn thư mục -->
+            <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
 
             <div>
                 <span class="label">Số tab chạy song song</span>
@@ -140,7 +167,8 @@
                     <div class="tab-item"><img class="tab-icon" src="/ico/image.png" alt=""> Tạo Ảnh</div>
                     <div class="tab-item"><img class="tab-icon" src="/ico/video.png" alt=""> Tạo Video</div>
                 </div>
-                <button type="button" class="help-btn" id="helpGuideBtn" onclick="openHelpGuide()" title="Hướng dẫn sử dụng">
+                <button type="button" class="help-btn" id="helpGuideBtn" onclick="openHelpGuide()"
+                    title="Hướng dẫn sử dụng">
                     ?
                 </button>
                 <button class="btn" id="exitAppBtn">

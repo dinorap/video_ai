@@ -259,10 +259,10 @@ async def fetch_recaptcha_token_via_page(
     stabilize_seconds: int = 0,
 ) -> Optional[str]:
     """
-    🔥 FIXED: Chỉ setup listeners và ĐỢI bắt token.
-    KHÔNG nhập prompt nữa vì đã được nhập trong setup_render_settings() rồi.
+    🔥 Setup listeners, GỬI PROMPT "a", và bắt recaptcha token.
     
     - Bật chặn + gắn listener trước
+    - Gửi prompt vào input và nhấn Enter
     - Đợi bắt /recaptcha/enterprise/reload để lấy rresp
     - Cleanup đúng cách để tránh listener/route handler tồn đọng
     """
@@ -310,10 +310,16 @@ async def fetch_recaptcha_token_via_page(
         page.on("response", _on_response)
         page.on("request", _on_request)
         
-        print(f"[Veo Get Token] ⏳ Đợi bắt recaptcha token (timeout: {timeout}s)...")
+        # 🔥 GỬI PROMPT để trigger recaptcha token
+        if prompt_for_token:
+            print(f"[Veo Get Token] 📝 Gửi prompt '{prompt_for_token}' để trigger token...")
+            prompt_sent = await send_prompt_text(page, prompt_for_token, wait_ms=5000)
+            if not prompt_sent:
+                print(f"[Veo Get Token] ⚠️ Không gửi được prompt '{prompt_for_token}'")
+            else:
+                print(f"[Veo Get Token] ✅ Đã gửi prompt '{prompt_for_token}'")
         
-        # 🔥 KHÔNG nhập prompt nữa - chỉ đợi bắt token
-        # Vì prompt đã được nhập trong setup_render_settings() rồi
+        print(f"[Veo Get Token] ⏳ Đợi bắt recaptcha token (timeout: {timeout}s)...")
         
         try:
             token = await asyncio.wait_for(fut, timeout=int(timeout))
