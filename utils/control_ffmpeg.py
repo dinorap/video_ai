@@ -78,6 +78,21 @@ def apply_background_music(
     out_path: str,
     music_volume: float = 0.6,
 ) -> str:
+    """
+    Thêm nhạc nền vào video và TẮT HẾT âm thanh gốc của video.
+    
+    ⚠️ QUAN TRỌNG: Hàm này sẽ LOẠI BỎ HOÀN TOÀN âm thanh gốc của video,
+    chỉ giữ lại nhạc nền để tránh bị loạn âm thanh.
+    
+    Args:
+        video_path: Đường dẫn video đầu vào
+        music_path: Đường dẫn file nhạc nền
+        out_path: Đường dẫn video đầu ra
+        music_volume: Volume nhạc nền (0.0-1.0), mặc định 0.6 = 60%
+    
+    Returns:
+        Đường dẫn video đầu ra đã có nhạc nền (không có âm gốc)
+    """
     if not video_path or not os.path.exists(video_path):
         raise ValueError("video_path not found")
     if not music_path or not os.path.exists(music_path):
@@ -85,7 +100,8 @@ def apply_background_music(
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    # Always drop original audio and use ONLY background music
+    # 🔇 TẮT ÂM THANH GỐC - CHỈ GIỮ NHẠC NỀN
+    # Logic: Chỉ map audio từ input[1] (nhạc nền), KHÔNG map audio từ input[0] (video gốc)
     filter_complex = f"[1:a]volume={music_volume}[aout]"
     cmd = [
         "ffmpeg",
@@ -115,7 +131,13 @@ def apply_background_music(
         out_path,
     ]
 
-    subprocess.run(cmd, cwd=TRANSCODE_DIR, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+    result = subprocess.run(cmd, cwd=TRANSCODE_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+    
+    # Kiểm tra file output thay vì dựa vào exit code (FFmpeg đôi khi trả về exit code sai)
+    if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+        stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ''
+        raise RuntimeError(f"FFmpeg merge failed: {stderr}")
+    
     return out_path
 
 
@@ -170,9 +192,19 @@ def merge_video_clips(
     if len(clips) == 0:
         raise ValueError("No clips")
     if len(clips) == 1:
-        # just copy
+        # 🔇 Copy video nhưng TẮT audio gốc
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", clips[0], "-c", "copy", out_path]
+        cmd = [
+            "ffmpeg", 
+            "-hide_banner", 
+            "-loglevel", "error", 
+            "-y", 
+            "-i", clips[0], 
+            "-map", "0:v",  # CHỈ map video
+            "-c:v", "copy",  # Copy video codec (nhanh)
+            "-an",  # 🔇 TẮT HẾT audio
+            out_path
+        ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
         return out_path
 
@@ -200,8 +232,9 @@ def merge_video_clips(
                 "0",
                 "-i",
                 list_file,
-                "-c",
-                "copy",
+                "-map", "0:v",  # 🔇 CHỈ map video, KHÔNG map audio
+                "-c:v", "copy",  # Copy video codec (nhanh)
+                "-an",  # 🔇 TẮT HẾT audio
                 out_path,
             ]
             subprocess.run(cmd, cwd=TRANSCODE_DIR, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
@@ -239,9 +272,9 @@ def merge_video_clips(
 
     v_last = f"vx{len(clips)-1}" if len(clips) > 1 else "v0"
 
-    # audio: simple concat (no crossfade)
-    a_inputs = "".join([f"[{i}:a]" for i in range(len(clips))])
-    filter_lines.append(f"{a_inputs}concat=n={len(clips)}:v=0:a=1[aout]")
+    # 🔇 KHÔNG ghép âm thanh gốc từ các clip (sẽ thêm nhạc nền sau)
+    # Chỉ ghép video, bỏ qua audio để tránh loạn âm thanh
+    # Audio sẽ được thêm vào sau bằng apply_background_music()
 
     filter_complex = ";".join(filter_lines)
     cmd = [
@@ -255,8 +288,8 @@ def merge_video_clips(
         filter_complex,
         "-map",
         f"[{v_last}]",
-        "-map",
-        "[aout]",
+        # ❌ KHÔNG map audio từ clips gốc
+        # "-map", "[aout]",  # ← Đã XÓA dòng này
         "-c:v",
         "libx264",
         "-preset",
@@ -265,16 +298,19 @@ def merge_video_clips(
         "23",
         "-pix_fmt",
         "yuv420p",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
+        "-an",  # 🔇 TẮT HẾT audio (không encode audio)
         "-movflags",
         "+faststart",
         out_path,
     ]
 
-    subprocess.run(cmd, cwd=TRANSCODE_DIR, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+    result = subprocess.run(cmd, cwd=TRANSCODE_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+    
+    # Kiểm tra file output thay vì dựa vào exit code (FFmpeg đôi khi trả về exit code sai)
+    if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+        stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ''
+        raise RuntimeError(f"FFmpeg xfade merge failed: {stderr}")
+    
     return out_path
 
 
