@@ -2417,17 +2417,21 @@ def create_videos_veo3_handler():
         if len(runner_tasks) == 0:
             return jsonify({'ok': False, 'error': 'No valid tasks'}), 400
 
-        from utils.control_creat_video_veo3 import run_video_tasks_veo3
+        # ===== SỬ DỤNG MODULE MỚI CÓ GHÉP VIDEO FFMPEG (GIỐNG 100% BÊN GROK) =====
+        from utils.control_creat_video_veo3_batch import run_video_tasks_veo3_batch
 
         cancel_event = threading.Event()
 
         async def _run_veo3_video_async():
             try:
-                await run_video_tasks_veo3(
+                await run_video_tasks_veo3_batch(
                     context={},
+                    provider='veo3',
                     tasks=runner_tasks,
                     max_tabs=max_tabs,
                     cancel_event=cancel_event,
+                    veo_duration=duration,
+                    veo_quality=veo3_video_quality,
                 )
             finally:
                 # Cleanup temp image files
