@@ -21,7 +21,7 @@
     <div id="sidebar">
         <div class="logo">
             <div class="logo-main">AI Video Studio</div>
-            <div class="app-version">Loading...</div>
+            <div class="app-version" id="app-version">Loading...</div>
         </div>
 
         <div class="info-card">
@@ -171,6 +171,12 @@
                     title="Hướng dẫn sử dụng">
                     ?
                 </button>
+                <button type="button" class="btn btn-update" id="updateBtn" style="display:none;"
+                    title="Cập nhật phiên bản mới">
+                    <i class="fas fa-download"></i>
+                    <span>Cập nhật <span class="update-version" id="updateVersion"></span></span>
+                    <span class="update-badge">MỚI</span>
+                </button>
                 <button class="btn" id="exitAppBtn">
                     <i class="fas fa-power-off"></i> Thoát
                 </button>
@@ -186,6 +192,7 @@
     <script src="/templaces/js/tao_anh.js"></script>
     <script src="/templaces/js/tao_video.js"></script>
     <!-- <script src="/templaces/js/kling.js"></script> -->
+    <script src="/templaces/js/updater.js"></script>
     <script src="/templaces/js/core.js"></script>
 
     <script>

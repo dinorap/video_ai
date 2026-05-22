@@ -201,49 +201,6 @@ function slugifyTabLabel(label) {
 }
 
 
-(function () {
-    let devtoolsOpen = false;
-
-    const threshold = 160;
-
-    function _redirectOnce() {
-        if (devtoolsOpen) return;
-        devtoolsOpen = true;
-        try {
-            window.location.href = "/video";
-        } catch (e) {
-        }
-    }
-
-    setInterval(() => {
-        const widthDiff = window.outerWidth - window.innerWidth;
-        const heightDiff = window.outerHeight - window.innerHeight;
-
-        const isOpen = widthDiff > threshold || heightDiff > threshold;
-
-        if (isOpen) {
-            _redirectOnce();
-        }
-
-        if (!isOpen) {
-            devtoolsOpen = false;
-        }
-    }, 500);
-
-    setInterval(() => {
-        try {
-            const t0 = (window.performance && performance.now) ? performance.now() : Date.now();
-            debugger;
-            const t1 = (window.performance && performance.now) ? performance.now() : Date.now();
-            if ((t1 - t0) > 200) {
-                _redirectOnce();
-            }
-        } catch (e) {
-        }
-    }, 1000);
-})();
-
-
 function initTabBindings() {
     const tabs = document.querySelectorAll('.horizontal-tabs .tab-item');
     if (!tabs || tabs.length === 0) return;

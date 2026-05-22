@@ -6,3 +6,6 @@ brotli
 werkzeug
 requests
 pyinstaller
+
+# --- OTA Update (dinorap-updater) ---
+dinorap-updater @ git+https://github.com/dinorap/dinorap-updater.git

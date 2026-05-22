@@ -13,6 +13,65 @@ from typing import Dict, Any
 import json
 import time
 
+# ============================================================================
+# OTA UPDATE SETUP
+# ============================================================================
+CURRENT_VERSION = "v1.0.0"  # Version hiện tại của ứng dụng
+UPDATE_ZIP_NAME = "VideoCreator.zip"  # Tên file ZIP trong GitHub release
+
+# Khởi tạo updater
+try:
+    from dinorap_updater import OTAUpdater
+    
+    updater = OTAUpdater(
+        github_user="dinorap",
+        github_repo="video-release",
+        current_version=CURRENT_VERSION
+    )
+    
+    # Fix chọn nhầm ZIP khi release có nhiều asset .zip
+    # Upstream dinorap-updater lấy "zip đầu tiên" nên dễ tải nhầm bản cũ
+    _orig_check_for_update = updater.check_for_update
+    
+    def _patched_check_for_update():
+        info = _orig_check_for_update()
+        if not info or not info.get("has_update"):
+            return info
+        
+        # Nếu asset zip không đúng tên chuẩn, coi như invalid để tránh tải nhầm
+        dl = str(info.get("download_url") or "")
+        if dl and not dl.endswith("/" + UPDATE_ZIP_NAME):
+            return {
+                "has_update": True,
+                "version": info.get("version"),
+                "download_url": None,
+                "meta_url": info.get("meta_url"),
+                "body": (info.get("body") or "") + f"\n\n[Updater] Found update but ZIP asset name mismatch. Expected: {UPDATE_ZIP_NAME}",
+                "error": "zip_asset_name_mismatch",
+                "expected_zip": UPDATE_ZIP_NAME,
+            }
+        return info
+    
+    updater.check_for_update = _patched_check_for_update  # type: ignore[assignment]
+    
+    UPDATER_AVAILABLE = True
+except ImportError:
+    UPDATER_AVAILABLE = False
+    updater = None
+
+# dinorap_updater chỉ cho phép update khi sys.frozen=True
+# Với một số bản Nuitka, cờ này có thể không được set dù đang chạy file .exe
+try:
+    from utils.veo3.path_helper import is_running_as_exe
+    if is_running_as_exe() and not getattr(sys, "frozen", False):
+        try:
+            setattr(sys, "frozen", True)
+        except Exception:
+            pass
+except Exception:
+    pass
+# ============================================================================
+
 try:
     os.environ.setdefault('NODE_OPTIONS', '--no-warnings')
 except Exception:
@@ -57,42 +116,84 @@ GENERATED_DIR = os.path.join(EXE_DIR, "generated")
 
 app = Flask(__name__, static_folder=".", static_url_path="/static")
 
+# ============================================================================
+# OTA UPDATE FLASK ROUTES
+# ============================================================================
+# dinorap-updater trả về FastAPI router, không tương thích với Flask
+# Tạo Flask routes thủ công để wrap các phương thức của updater
 
-@app.route('/video', methods=['GET', 'HEAD'])
-def video_only_page():
-    html = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Video</title>
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    """Trả về version hiện tại"""
+    return jsonify({"version": CURRENT_VERSION})
 
-<style>
-html,body{
-    margin:0;
-    padding:0;
-    background:#000;
-    height:100%;
-}
-iframe{
-    width:100vw;
-    height:100vh;
-    border:0;
-}
-</style>
+if UPDATER_AVAILABLE and updater:
+    @app.route('/api/update/check', methods=['GET'])
+    def check_for_update():
+        """Kiểm tra update mới"""
+        try:
+            info = updater.check_for_update()
+            return jsonify(info)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route('/api/update/download', methods=['POST'])
+    def download_update():
+        """Download update"""
+        try:
+            data = request.get_json() or {}
+            download_url = data.get('download_url')
+            if not download_url:
+                return jsonify({"error": "download_url required"}), 400
+            
+            result = updater.download_update(download_url)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route('/api/update/apply', methods=['POST'])
+    def apply_update():
+        """Apply update đã download"""
+        try:
+            data = request.get_json() or {}
+            zip_path = data.get('zip_path')
+            if not zip_path:
+                return jsonify({"error": "zip_path required"}), 400
+            
+            result = updater.apply_update(zip_path)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route('/api/update/status', methods=['GET'])
+    def update_status():
+        """Lấy trạng thái update"""
+        try:
+            status = updater.get_status()
+            return jsonify(status)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
-</head>
-<body>
+@app.route('/api/debug/runtime', methods=['GET'])
+def debug_runtime():
+    """Debug endpoint để kiểm tra runtime info"""
+    return jsonify({
+        "sys.frozen": getattr(sys, 'frozen', False),
+        "sys.executable": sys.executable,
+        "updater_available": UPDATER_AVAILABLE,
+        "current_version": CURRENT_VERSION,
+    })
 
-<iframe 
-src="https://www.youtube.com/embed/Bu_2X1vcev8?autoplay=1&controls=1&loop=1&playlist=Bu_2X1vcev8"
-allow="autoplay; encrypted-media"
-allowfullscreen>
-</iframe>
+# Exception handler cho PermissionError
+@app.errorhandler(PermissionError)
+def handle_permission_error(e):
+    return jsonify({
+        "error": "Permission denied",
+        "message": str(e),
+        "hint": "Try running as administrator or check file permissions"
+    }), 403
 
-</body>
-</html>"""
-    return html
+# ============================================================================
 
 
 _ACCOUNT_CHECK_CACHE_LOCK = threading.Lock()
@@ -361,6 +462,28 @@ def favicon():
     return serve_ico('logo.ico')
 
 
+@app.route('/api/debug/runtime')
+def get_runtime_debug():
+    """Debug endpoint để xác minh app đang chạy từ đâu (hữu ích khi OTA update)"""
+    try:
+        exe = sys.executable
+    except Exception:
+        exe = ""
+    try:
+        from pathlib import Path
+        cwd = str(Path.cwd())
+    except Exception:
+        cwd = ""
+    
+    return jsonify({
+        "version": CURRENT_VERSION,
+        "sys_executable": exe,
+        "cwd": cwd,
+        "frozen": getattr(sys, "frozen", False),
+        "updater_available": UPDATER_AVAILABLE,
+    })
+
+
 @app.route('/debug_browser', methods=['GET'])
 def debug_browser():
     try:
@@ -408,6 +531,25 @@ def debug_routes():
         return jsonify({'ok': True, 'routes': items})
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+# Exception handler cho Access Denied errors từ update
+@app.errorhandler(PermissionError)
+def access_denied_handler(exc: PermissionError):
+    """Catch Access Denied errors từ update và trả về thông báo hữu ích"""
+    error_msg = str(exc)
+    
+    if request and "/api/update/" in str(request.url):
+        if "Access is denied" in error_msg or "WinError 5" in error_msg:
+            return jsonify({
+                "error": "Access Denied",
+                "message": "Không thể update vì file đang được sử dụng. Vui lòng đóng ứng dụng và thử lại.",
+                "solution": "Đóng ứng dụng hoàn toàn, chờ vài giây, rồi chạy lại và thử update.",
+                "original_error": error_msg
+            }), 500
+    
+    # Nếu không phải update endpoint, raise lại exception
+    raise exc
 
 
 @app.route('/api/check', methods=['POST'])
