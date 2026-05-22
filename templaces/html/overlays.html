@@ -149,3 +149,114 @@
     </div>
 </div>
 
+<div id="helpGuideModal" class="modal-overlay" style="display:none;">
+    <div class="help-guide-box">
+        <div class="help-guide-header">
+            <div>
+                <div class="help-guide-title">Hướng dẫn sử dụng AI Video Studio</div>
+                <div class="help-guide-subtitle">Các bước thiết lập và sử dụng cơ bản</div>
+            </div>
+            <button type="button" class="help-guide-close" onclick="closeHelpGuide()">×</button>
+        </div>
+
+        <div class="help-guide-content">
+            <div class="help-section">
+                <h3>1. Thiết lập tài khoản AI</h3>
+                <p>
+                    Trước khi tạo ảnh hoặc video, hãy chọn model AI đang dùng ở thanh bên trái, ví dụ
+                    <b>Grok (X-AI)</b> hoặc <b>Veo3 (Google)</b>. Sau đó bấm
+                    <b>Thiết lập tài khoản</b> để mở trình duyệt đăng nhập tài khoản tương ứng.
+                </p>
+                <p>
+                    Nếu sử dụng Grok, hãy đăng nhập tài khoản X/Grok. Nếu sử dụng Veo3, hãy đăng nhập tài khoản Google
+                    có quyền dùng Veo. Sau khi đăng nhập xong, quay lại app và bắt đầu tạo nội dung.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>2. Chỉnh thông số video đầu ra</h3>
+                <p>
+                    Trong mục <b>Cấu hình chạy</b>, chọn chất lượng video như <b>720p</b> hoặc <b>1080p</b>.
+                    Tiếp theo chọn tỉ lệ khung hình, thường dùng <b>9:16</b> cho video dọc đăng TikTok, Reels,
+                    Shorts; hoặc <b>16:9</b> cho video ngang.
+                </p>
+                <p>
+                    Nếu dùng Grok, bạn có thể chọn thời lượng video theo các lựa chọn mà app hỗ trợ.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>3. Chọn số luồng chạy song song</h3>
+                <p>
+                    Mục <b>Số tab chạy song song</b> quyết định số phiên trình duyệt chạy cùng lúc.
+                    Số càng cao thì xử lý nhiều task hơn, nhưng máy sẽ nặng hơn.
+                </p>
+                <p>
+                    Nếu máy yếu, nên để từ <b>1 đến 3</b>. Nếu máy khỏe và mạng ổn định, có thể tăng lên
+                    <b>5</b> hoặc cao hơn.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>4. Chọn vị trí lưu file</h3>
+                <p>
+                    Bấm <b>Thư mục kết quả</b> để chọn nơi lưu ảnh/video sau khi tạo xong.
+                    Nên chọn thư mục dễ tìm, ví dụ thư mục riêng trên Desktop hoặc thư mục dự án.
+                </p>
+                <p>
+                    Khi tạo video, app có thể tạo thư mục tạm dạng <b>video_batch_xxx</b>.
+                    Sau khi bấm <b>Lưu</b>, video hoàn chỉnh sẽ được chuyển ra thư mục kết quả bạn đã chọn.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>5. Cách Clone Video</h3>
+                <p>
+                    Vào tab <b>Clone Video</b>, bấm <b>Chọn video</b> để đưa video mẫu vào app.
+                    Chọn ngôn ngữ, loại sản phẩm, model xử lý và nhập API key nếu cần.
+                </p>
+                <p>
+                    Sau đó bấm <b>Bắt đầu</b> để app phân tích hoặc tạo kịch bản theo video mẫu.
+                    Bạn có thể lưu, xóa hoặc thêm cảnh trong phần kịch bản.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>6. Cách Tạo Ảnh</h3>
+                <p>
+                    Vào tab <b>Tạo Ảnh</b>, bấm <b>Thêm</b> để thêm form tạo ảnh.
+                    Tải ảnh tham chiếu nếu cần, nhập prompt mô tả ảnh, sau đó bấm tạo từng ảnh hoặc
+                    <b>Tạo tất cả</b>.
+                </p>
+                <p>
+                    Nếu muốn dùng chung prompt cho nhiều ảnh, bấm <b>Nhập Prompt cho tất cả</b>.
+                    Kích thước ảnh sẽ lấy theo tỉ lệ đang chọn ở sidebar, mặc định nên dùng <b>9:16</b>.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>7. Cách Tạo Video</h3>
+                <p>
+                    Vào tab <b>Tạo Video</b>, bấm <b>Thêm</b> để thêm một dòng video mới.
+                    Mỗi video thường gồm ảnh đầu vào, prompt và các cảnh cần tạo.
+                </p>
+                <p>
+                    Sau khi nhập đủ nội dung, bấm <b>Bắt đầu</b>. Khi video tạo xong, kiểm tra kết quả rồi bấm
+                    <b>Lưu</b> để chuyển video hoàn chỉnh về thư mục kết quả.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3>8. Nhạc nền và xử lý âm thanh</h3>
+                <p>
+                    Trong mục <b>Âm thanh &amp; Xử lý</b>, bạn có thể thêm nhạc nền, nghe thử, xóa nhạc
+                    hoặc bật chế độ random nhạc. Nếu không muốn thêm nhạc, chọn <b>None</b> hoặc để trống.
+                </p>
+            </div>
+        </div>
+
+        <div class="help-guide-footer">
+            <button type="button" class="modal-confirm" onclick="closeHelpGuide()">Đã hiểu</button>
+        </div>
+    </div>
+</div>

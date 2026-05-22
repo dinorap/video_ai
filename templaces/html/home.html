@@ -1,37 +1,51 @@
-<div class="group-box" style="margin-bottom: 25px;">
-    <h2 style="font-size: 16px; margin-top: 0; color: #fff;">CHỌN GIAO DIỆN (THEME)</h2>
-    <div id="themeGrid" class="theme-grid" style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px;"></div>
-</div>
+<div class="home-dashboard">
+    <section class="group-box theme-panel">
+        <div class="panel-heading">
+            <img class="panel-icon" src="/ico/settings.png" alt="">
+            <h2>CHỌN GIAO DIỆN (THEME)</h2>
+        </div>
+        <div id="themeGrid" class="theme-grid"></div>
+    </section>
 
-<div class="group-box" style="margin-bottom: 15px;">
-    <h2 style="font-size: 16px; margin-top: 0; color: #fff;">CÀI ĐẶT CDP</h2>
-    <div style="display:flex; align-items:center; gap:10px;">
-        <label for="cdpPortInput" style="color:#fff; min-width: 130px;">Port điều khiển</label>
-        <input id="cdpPortInput" type="number" min="1" max="65535" step="1" value="9222" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff;" />
-    </div>
-</div>
+    <section class="group-box cdp-panel">
+        <div class="panel-heading">
+            <img class="panel-icon" src="/ico/setting-lines.png" alt="">
+            <h2>CÀI ĐẶT CDP</h2>
+        </div>
+        <div class="cdp-row">
+            <label for="cdpPortInput">Port điều khiển</label>
+            <input id="cdpPortInput" class="input-control" type="number" min="1" max="65535" step="1" value="9222" />
+        </div>
+    </section>
 
-<button class="btn" id="uninstallBtn" style="width: 33.3%; margin-bottom: 15px; background: #e53935; color: #fff;">
-    <i class="fas fa-trash-alt"></i> Gỡ cài đặt
-</button>
-
-<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top: 0;">
-    <h2 style="margin: 0; font-weight: 900; color: #fff;">DANH SÁCH TÁC VỤ</h2>
-    <button class="btn" id="clearTasksBtn" style="background: #444; color: #fff; padding: 10px 16px;">
-        Clear
-    </button>
-</div>
-<div class="table-container">
-    <table class="task-table">
-        <thead>
-            <tr>
-                <th style="width: 50px;">STT</th>
-                <th>Dự Án</th>
-                <th>Model</th>
-                <th>Thời gian</th>
-                <th style="text-align: center; width: 120px;">Trạng thái</th>
-            </tr>
-        </thead>
-        <tbody id="taskTableBody"></tbody>
-    </table>
+    <section class="group-box task-panel">
+        <div class="task-title-row">
+            <div class="panel-heading">
+                <img class="panel-icon" src="/ico/musical.png" alt="">
+                <h2>DANH SÁCH TÁC VỤ</h2>
+            </div>
+            <div class="task-actions">
+                <button class="btn btn-uninstall" id="uninstallBtn">
+                    <i class="fas fa-trash-alt"></i> Gỡ cài đặt
+                </button>
+                <button class="btn btn-clear" id="clearTasksBtn">
+                    <i class="fas fa-trash-alt"></i> Clear
+                </button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">STT</th>
+                        <th>Dự Án</th>
+                        <th>Model</th>
+                        <th>Thời gian</th>
+                        <th style="text-align: center; width: 120px;">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody id="taskTableBody"></tbody>
+            </table>
+        </div>
+    </section>
 </div>

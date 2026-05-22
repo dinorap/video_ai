@@ -1,30 +1,36 @@
-<h2 style="margin-top: 0; font-weight: 900; color: var(--text-main); font-size: 22px; letter-spacing: 0.02em;">Clone Video</h2>
+<div class="clone-page">
+    <div class="page-heading">
+        <img class="panel-icon" src="/ico/paste.png" alt="">
+        <h2>Clone Video</h2>
+    </div>
 
-<div style="display: flex; gap: 24px; min-height: 70vh;">
-    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
-        <div class="group-box" style="margin-bottom: 0; border-radius: 14px; padding: 16px;">
-            <div style="font-weight: 900; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-cyan);">Thiết lập</div>
-            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; font-size: 14px; min-width: 0;">
-                <button type="button" class="btn btn-settings" id="cloneVideoChooseBtn" style="font-size: 12px;">Chọn video</button>
-                <input type="text" class="input-control" id="cloneVideoPathInput" placeholder="Đường dẫn video..." style="font-size: 14px; border-radius: 10px; min-width: 0;" />
+    <div class="clone-grid">
+        <section class="group-box clone-card clone-settings-card">
+            <div class="panel-heading">
+                <img class="panel-icon" src="/ico/setting-lines.png" alt="">
+                <h2>Thiết lập</h2>
+            </div>
+            <div class="clone-form-grid">
+                <button type="button" class="btn btn-settings" id="cloneVideoChooseBtn">Chọn video</button>
+                <input type="text" class="input-control" id="cloneVideoPathInput" placeholder="Đường dẫn video..." />
                 <input type="file" id="cloneVideoFileInput" accept="video/*" style="display:none;" />
 
-                <label style="opacity: 0.9;">Ngôn ngữ</label>
-                <select class="input-control" style="font-size: 14px; border-radius: 10px;">
-                        <option value="vietnam" selected>Việt Nam</option>
-                        <option value="english">English</option>
-                        <option value="chinese">中国</option>
+                <label>Ngôn ngữ</label>
+                <select class="input-control">
+                    <option value="vietnam" selected>Việt Nam</option>
+                    <option value="english">English</option>
+                    <option value="chinese">中国</option>
                 </select>
 
-                <label style="opacity: 0.9;">Loại sản phẩm</label>
-                <select class="input-control" style="font-size: 14px; border-radius: 10px;">
+                <label>Loại sản phẩm</label>
+                <select class="input-control">
                     <option value="thoitrang" selected>Thời trang</option>
                     <option value="bienso">Biển số xe</option>
                     <option value="simso">Sim số</option>
                 </select>
 
-                <label style="opacity: 0.9;">Model</label>
-                <select class="input-control" id="cloneVideoModelSelect" style="font-size: 14px; border-radius: 10px;">
+                <label>Model</label>
+                <select class="input-control" id="cloneVideoModelSelect">
                     <option value="gpt-4.1-mini">gpt-4.1-mini</option>
                     <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
                     <option value="gemini-2.0-flash">gemini-2.0-flash</option>
@@ -32,48 +38,53 @@
                     <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
                 </select>
 
-                <label style="opacity: 0.9;">API Key</label>
-                <input type="text" class="input-control" id="cloneVideoApiKey" value="" style="font-size: 14px; border-radius: 10px; min-width: 0;" />
+                <label>API Key</label>
+                <input type="text" class="input-control" id="cloneVideoApiKey" value="" />
 
-                <label style="opacity: 0.9;">Kịch bản</label>
-                <select id="scriptSelect" class="input-control" style="font-size: 14px; border-radius: 10px;">
+                <label>Kịch bản</label>
+                <select id="scriptSelect" class="input-control">
                     <option value="" selected>None</option>
                 </select>
             </div>
-        </div>
+        </section>
 
-        <div class="group-box" style="flex: 1; min-height: 260px; border-radius: 14px; padding: 16px;">
-            <div style="font-weight: 900; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-cyan);">Nội dung</div>
-            <div id="cloneVideoPreview" style="position: relative; flex: 1; border: 1px dashed rgba(255,255,255,0.12); border-radius: 14px; min-height: 220px; overflow: hidden; cursor: pointer; background: rgba(0,0,0,0.35);">
-                <img id="cloneVideoPreviewThumb" alt="Video thumbnail" style="position: absolute; inset: 0; width: 100%; height: 100%; display: none; object-fit: contain; object-position: center;" />
-                <video id="cloneVideoPreviewVideo" style="width: 100%; height: 100%; display: block; object-fit: cover;" muted playsinline></video>
-                <div id="cloneVideoPlayIcon" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 64px; height: 64px; border-radius: 999px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
-                        <div style="width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 16px solid var(--text-main); margin-left: 4px;"></div>
-                    </div>
+        <section class="group-box clone-card clone-preview-card">
+            <div class="panel-heading">
+                <img class="panel-icon" src="/ico/video.png" alt="">
+                <h2>Nội dung</h2>
+            </div>
+            <div id="cloneVideoPreview" class="clone-video-preview">
+                <img id="cloneVideoPreviewThumb" alt="Video thumbnail" />
+                <video id="cloneVideoPreviewVideo" muted playsinline></video>
+                <div id="cloneVideoPlayIcon" class="clone-play-layer">
+                    <div class="clone-play-button"><div></div></div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
-        <div class="group-box" style="border-radius: 14px; padding: 16px;">
-            <div style="font-weight: 900; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-cyan);">Hành động</div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-settings" id="startBtn" style="font-size: 12px;">Bắt đầu</button>
-                <button type="button" id="saveScriptBtn" class="btn btn-preview" style="font-size: 12px;">Lưu kịch bản</button>
-                <button type="button" id="deleteScriptBtn" class="btn" style="font-size: 12px; background: radial-gradient(circle at top left, rgba(255, 49, 49, 0.25), transparent 55%); border: 1px solid var(--primary-red); color: #ffecec;">Xóa kịch bản</button>
+        <section class="group-box clone-card clone-action-card">
+            <div class="panel-heading">
+                <img class="panel-icon" src="/ico/settings.png" alt="">
+                <h2>Hành động</h2>
             </div>
-        </div>
+            <div class="clone-actions">
+                <button type="button" class="btn btn-settings" id="startBtn">Bắt đầu</button>
+                <button type="button" id="saveScriptBtn" class="btn btn-preview">Lưu kịch bản</button>
+                <button type="button" id="deleteScriptBtn" class="btn btn-delete danger-btn">Xóa kịch bản</button>
+            </div>
+        </section>
 
-        <div class="group-box" style="flex: 1; min-height: 260px; border-radius: 14px; padding: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="font-weight: 900; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-cyan);">Kịch bản</div>
-                <button type="button" id="addSceneBtn" class="btn" style="font-size: 12px; padding: 4px 12px; background: radial-gradient(circle at top left, rgba(255, 49, 49, 0.25), transparent 55%); border: 1px solid var(--primary-red); color: #ffecec;">Thêm</button>
+        <section class="group-box clone-card clone-script-card">
+            <div class="clone-script-title">
+                <div class="panel-heading">
+                    <img class="panel-icon" src="/ico/paste.png" alt="">
+                    <h2>Kịch bản</h2>
+                </div>
+                <button type="button" id="addSceneBtn" class="btn btn-settings compact-btn">Thêm</button>
             </div>
-            <div id="sceneContainer" style="flex: 1; border: 1px dashed rgba(255,255,255,0.12); border-radius: 14px; min-height: 180px; padding: 12px; overflow-y: auto;">
+            <div id="sceneContainer" class="scene-container">
                 <!-- Scenes will be rendered here -->
             </div>
-        </div>
+        </section>
     </div>
 </div>

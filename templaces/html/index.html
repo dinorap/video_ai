@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoVideo999+ Dashboard</title>
+    <title>AI Video Studio</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2">
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -20,17 +20,17 @@
 
     <div id="sidebar">
         <div class="logo">
-            AutoVideo999+
-            <div class="app-version" style="font-size: 10px; color: #666; margin-top: 2px;">Loading...</div>
+            <div class="logo-main">AI Video Studio</div>
+            <div class="app-version">Loading...</div>
         </div>
 
         <div class="info-card">
-            <span class="label">AI Credit Balance</span>
-            <div class="value credit-value"><i class="fas fa-coins"></i> 1,250.00</div>
+            <span class="label"><img class="section-icon" src="/ico/musical.png" alt=""> AI Credit Balance</span>
+            <div class="value credit-value">1,250.00</div>
         </div>
 
         <div class="info-card">
-            <span class="label">User ID</span>
+            <span class="label"><img class="section-icon" src="/ico/user.png" alt=""> User ID</span>
 
             <div class="value id-value">
 
@@ -49,21 +49,20 @@
             </div>
         </div>
 
-        <div class="section-title">Quản lý tài khoản</div>
+        <div class="section-title"><img class="section-icon" src="/ico/people.png" alt=""> Quản lý tài khoản</div>
         <div class="group-box">
             <div>
                 <span class="label">Model AI Đang dùng</span>
                 <select class="input-control" id="model-select">
                     <option>Grok (X-AI)</option>
                     <option>Veo3 (Google)</option>
-                    <option style="display: none;">Kling AI</option>
+                    <!-- <option style="display: none;">Kling AI</option> -->
                 </select>
             </div>
-            <button class="btn btn-settings" id="btn-settings-account"><i class="fas fa-user-shield"></i> THIẾT LẬP TÀI
-                KHOẢN</button>
+            <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon" src="/ico/settings.png" alt=""> THIẾT LẬP TÀI KHOẢN</button>
         </div>
 
-        <div class="section-title">Cấu hình chạy</div>
+        <div class="section-title"><img class="section-icon" src="/ico/setting-lines.png" alt=""> Cấu hình chạy</div>
         <div class="group-box" style="gap: 8px;">
             <div style="display: flex; flex-direction: row; gap: 8px;">
                 <div style="flex: 1;">
@@ -90,39 +89,13 @@
                 </select>
             </div>
 
-            <div id="veo3-image-model-container" style="display: none;">
-                <span class="label">Model tạo ảnh (Veo3)</span>
-                <select class="input-control" id="veo3-image-model">
-                    <option value="🍌 Nano Banana Pro" selected>🍌 Nano Banana Pro</option>
-                    <option value="🍌 Nano Banana 2">🍌 Nano Banana 2</option>
-                    <option value="Imagen 4">Imagen 4</option>
-                </select>
-            </div>
-
-            <div id="veo3-video-quality-container" style="display: none;">
-                <span class="label">Chất lượng video (Veo3)</span>
-                <select class="input-control" id="veo3-video-quality">
-                    <option value="Veo 3.1 - Lite [Lower Priority]" selected>Veo 3.1 - Lite [Lower Priority]</option>
-                    <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
-                    <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
-                    <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
-                </select>
-            </div>
-
-            <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
-                <i class="fas fa-folder-open"></i>
-                <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
-            </button>
-            <!-- input ẩn dùng để chọn thư mục -->
-            <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
-
             <div>
                 <span class="label">Số tab chạy song song</span>
                 <input class="input-control" id="max-tabs-input" type="number" min="1" max="10" value="5" />
             </div>
         </div>
 
-        <div class="section-title">Âm thanh &amp; Xử lý</div>
+        <div class="section-title"><img class="section-icon" src="/ico/musical.png" alt=""> Âm thanh &amp; Xử lý</div>
         <div class="group-box">
             <div>
                 <span class="label">Nhạc nền video</span>
@@ -134,9 +107,7 @@
                 </datalist>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                <button class="btn btn-gold" id="addMusicBtn"
-                    style="grid-column: span 2; background: var(--accent-purple); color: white;">+ Thêm âm
-                    thanh</button>
+                <button class="btn btn-gold" id="addMusicBtn" style="grid-column: span 2;">+ Thêm âm thanh</button>
                 <button class="btn btn-preview"><i class="fas fa-play"></i> Nghe thử</button>
                 <button class="btn btn-delete" onclick="deleteSelectedMusic()">
                     <i class="fas fa-trash-alt"></i> Xóa
@@ -149,21 +120,30 @@
         </div>
         <!-- input ẩn dùng để chọn file nhạc / video thêm mới -->
         <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
+
+        <div class="section-title"><i class="fas fa-folder-open"></i> Thư mục lưu kết quả</div>
+        <div class="group-box result-folder-box">
+            <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
+                <span class="folder-symbol">▣</span>
+                <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
+            </button>
+            <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
+        </div>
     </div>
 
     <div id="main-wrapper">
         <header>
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
                 <div class="horizontal-tabs">
-                    <div class="tab-item active">Home</div>
-                    <div class="tab-item">Clone Video</div>
-                    <div class="tab-item">Tạo Ảnh</div>
-                    <div class="tab-item">Tạo Video</div>
-                    <div class="tab-item" style="display: none;">KLing</div>
-
+                    <div class="tab-item active"><img class="tab-icon" src="/ico/home.png" alt=""> Home</div>
+                    <div class="tab-item"><img class="tab-icon" src="/ico/paste.png" alt=""> Clone Video</div>
+                    <div class="tab-item"><img class="tab-icon" src="/ico/image.png" alt=""> Tạo Ảnh</div>
+                    <div class="tab-item"><img class="tab-icon" src="/ico/video.png" alt=""> Tạo Video</div>
                 </div>
-                <button class="btn" id="exitAppBtn"
-                    style="background:#444; color:#fff; padding: 8px 14px; white-space: nowrap;">
+                <button type="button" class="help-btn" id="helpGuideBtn" onclick="openHelpGuide()" title="Hướng dẫn sử dụng">
+                    ?
+                </button>
+                <button class="btn" id="exitAppBtn">
                     <i class="fas fa-power-off"></i> Thoát
                 </button>
             </div>
@@ -177,9 +157,24 @@
     <script src="/templaces/js/clone_video.js"></script>
     <script src="/templaces/js/tao_anh.js"></script>
     <script src="/templaces/js/tao_video.js"></script>
-    <script src="/templaces/js/kling.js"></script>
+    <!-- <script src="/templaces/js/kling.js"></script> -->
     <script src="/templaces/js/core.js"></script>
 
+    <script>
+        function openHelpGuide() {
+            const modal = document.getElementById('helpGuideModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeHelpGuide() {
+            const modal = document.getElementById('helpGuideModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 
 </html>
