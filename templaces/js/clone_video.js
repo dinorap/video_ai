@@ -567,6 +567,47 @@ function initCloneVideoPage() {
                 cloneVideoPathInput.value = file.name;
             }
 
+            // Xóa file video cũ trên server trước khi upload file mới
+            const oldServerPath = window.__cloneVideoState.serverVideoPath;
+            if (oldServerPath) {
+                try {
+                    await fetch('/cleanup_temp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ temp_file: oldServerPath })
+                    });
+                } catch (err) {
+                    console.error('Lỗi xóa video cũ:', err);
+                }
+            }
+
+            // Reset video preview trước khi load video mới
+            if (cloneVideoPreviewVideo) {
+                cloneVideoPreviewVideo.pause();
+                cloneVideoPreviewVideo.removeAttribute('src');
+                cloneVideoPreviewVideo.load(); // Force release resources
+                cloneVideoPreviewVideo.style.display = 'none';
+            }
+            if (cloneVideoPreviewThumb) {
+                cloneVideoPreviewThumb.removeAttribute('src');
+                cloneVideoPreviewThumb.style.display = 'none';
+            }
+            // Reset container size về mặc định
+            if (cloneVideoPreview) {
+                cloneVideoPreview.style.maxWidth = '';
+                cloneVideoPreview.style.width = '100%';
+            }
+
+            // Revoke old blob URL nếu có
+            if (window.__cloneVideoState.objectUrl) {
+                try {
+                    URL.revokeObjectURL(window.__cloneVideoState.objectUrl);
+                } catch (_) { }
+                window.__cloneVideoState.objectUrl = '';
+            }
+
             try {
                 const formData = new FormData();
                 formData.append('file', file);
@@ -605,14 +646,33 @@ function initCloneVideoPage() {
 
                 if (cloneVideoPreviewVideo) {
                     cloneVideoPreviewVideo.style.display = 'block';
-                    // Sử dụng URL từ server thay vì blob URL
-                    cloneVideoPreviewVideo.src = serverUrl;
+                    // Thêm timestamp để tránh cache browser
+                    const timestamp = new Date().getTime();
+                    cloneVideoPreviewVideo.src = `${serverUrl}?t=${timestamp}`;
                     cloneVideoPreviewVideo.load();
 
-                    // Ẩn nút play khi video đã load xong
-                    cloneVideoPreviewVideo.onloadeddata = function () {
-                        if (cloneVideoPlayIcon) {
-                            cloneVideoPlayIcon.style.display = 'none';
+                    // Tự động điều chỉnh kích thước container dựa trên aspect ratio
+                    cloneVideoPreviewVideo.onloadedmetadata = function () {
+                        const videoWidth = this.videoWidth;
+                        const videoHeight = this.videoHeight;
+                        const aspectRatio = videoWidth / videoHeight;
+
+                        if (cloneVideoPreview) {
+                            // Video dọc (9:16 hoặc tương tự)
+                            if (aspectRatio < 0.75) {
+                                cloneVideoPreview.style.maxWidth = '280px';
+                                cloneVideoPreview.style.width = '100%';
+                            }
+                            // Video ngang (16:9 hoặc tương tự)
+                            else if (aspectRatio > 1.5) {
+                                cloneVideoPreview.style.maxWidth = '100%';
+                                cloneVideoPreview.style.width = '100%';
+                            }
+                            // Video vuông hoặc gần vuông
+                            else {
+                                cloneVideoPreview.style.maxWidth = '400px';
+                                cloneVideoPreview.style.width = '100%';
+                            }
                         }
                     };
                 }

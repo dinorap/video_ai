@@ -868,13 +868,17 @@ header>div {
 
 .clone-video-preview {
     position     : relative;
+    width        : 100%;
     min-height   : 370px;
+    max-height   : 500px;
+    margin       : 0 auto;
     flex         : 1;
     overflow     : hidden;
     cursor       : pointer;
     border       : 1px dashed var(--border-color);
     border-radius: 16px;
     background   : radial-gradient(circle at center, var(--accent-soft), transparent 45%), rgba(0, 0, 0, 0.35);
+    transition   : max-width 0.3s ease;
 }
 
 #cloneVideoPreviewThumb {
