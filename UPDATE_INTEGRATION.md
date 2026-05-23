@@ -64,9 +64,12 @@ VideoCreator.zip
 1. User mở app → Auto-check update mỗi 60 phút
 2. Nếu có update mới → Hiển thị nút "Cập nhật" ở header
 3. User click "Cập nhật" → Hiển thị dialog với release notes
-4. User click "Cập nhật ngay" → Download ZIP từ GitHub
-5. Extract và replace files
-6. Restart app tự động
+4. User click "Cập nhật ngay" → `POST /api/update/perform`
+5. Tải `VideoCreator.zip` + verify SHA256 từ `update.json`
+6. **xcopy ghi đè** (file có trong ZIP mới thay file cũ; file chỉ có trên máy được giữ)
+7. Restart app tự động
+
+**Không dùng `update.exe`.**
 
 ## 🔧 Cấu hình
 
@@ -108,9 +111,16 @@ Backend cung cấp các endpoints sau:
 
 - `GET /api/version` - Lấy version hiện tại
 - `GET /api/update/check` - Check có update mới không
-- `POST /api/update/download` - Download update
-- `POST /api/update/apply` - Apply update và restart
+- `POST /api/update/perform` - Tải, verify, xcopy merge, restart
 - `GET /api/debug/runtime` - Debug info (exe path, cwd, frozen status)
+
+### Build & upload release
+
+```powershell
+python build_fast_c++.py --release --clean --zip
+```
+
+Upload lên GitHub: `VideoCreator.zip` + `update.json` (cùng tag `version.py`).
 
 ## ⚠️ Lưu ý quan trọng
 

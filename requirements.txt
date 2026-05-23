@@ -6,6 +6,10 @@ brotli
 werkzeug
 requests
 pyinstaller
+nuitka
+ordered-set
+zstandard
 
 # --- OTA Update (dinorap-updater) ---
+packaging
 dinorap-updater @ git+https://github.com/dinorap/dinorap-updater.git

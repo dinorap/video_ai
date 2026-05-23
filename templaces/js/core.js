@@ -303,7 +303,9 @@ async function loadConfig() {
 
         const userIdElement = document.getElementById('userId');
         if (userIdElement) {
-            userIdElement.innerText = data.ACCOUNT_ID;
+            const accountId = String(data.ACCOUNT_ID || '').trim();
+            userIdElement.innerText = accountId || 'Nhập User ID';
+            data.ACCOUNT_ID = accountId;
         }
 
         window.configData = data;
@@ -311,7 +313,9 @@ async function loadConfig() {
         // Auto-check account credit via local app API (server will call utils/callserver.py)
         try {
             await refreshCreditAsync();
-        } catch (_) { }
+        } catch (_) {
+            setCreditDisplayEmpty();
+        }
 
         // Sidebar model select (UI text may not match MODEL_AI string, so only best-effort)
         const sidebarModelSelect = document.querySelector('#sidebar .group-box select');
@@ -340,10 +344,29 @@ async function loadConfig() {
 }
 
 
+function setCreditDisplay(html) {
+    const creditEls = document.querySelectorAll('.credit-value');
+    if (!creditEls || !creditEls.length) return;
+    creditEls.forEach((el) => {
+        try {
+            el.innerHTML = html;
+        } catch (_) { }
+    });
+}
+
+function setCreditDisplayEmpty() {
+    setCreditDisplay('—');
+}
+
 async function refreshCreditAsync() {
     try {
-        const uid = (window.configData && window.configData.ACCOUNT_ID) ? String(window.configData.ACCOUNT_ID || '').trim() : '';
-        if (!uid) return null;
+        const uid = (window.configData && window.configData.ACCOUNT_ID)
+            ? String(window.configData.ACCOUNT_ID || '').trim()
+            : '';
+        if (!uid || uid === 'Nhập User ID') {
+            setCreditDisplayEmpty();
+            return null;
+        }
 
         const res = await fetch('/api/check', {
             method: 'POST',
@@ -353,25 +376,25 @@ async function refreshCreditAsync() {
         });
         const body = await res.json().catch(() => ({}));
 
+        if (!res.ok || body.ok === false) {
+            setCreditDisplayEmpty();
+            return body;
+        }
+
         const count = (body && typeof body.count !== 'undefined') ? body.count : 0;
         const limit = (body && typeof body.limit !== 'undefined') ? body.limit : 0;
-        const creditEls = document.querySelectorAll('.credit-value');
-        if (creditEls && creditEls.length) {
-            creditEls.forEach((el) => {
-                try {
-                    el.innerHTML = `<i class="fas fa-coins"></i> ${count}/${limit}`;
-                } catch (e) { }
-            });
-        }
+        setCreditDisplay(`<i class="fas fa-coins"></i> ${count}/${limit}`);
 
         return body;
     } catch (e) {
+        setCreditDisplayEmpty();
         return null;
     }
 }
 
 try {
     window.refreshCreditAsync = refreshCreditAsync;
+    window.openLogToggleModal = openLogToggleModal;
 } catch (e) { }
 
 function copyId(event) {
@@ -434,6 +457,138 @@ function closeModal() {
     }
 }
 
+function initLogSettingsBindings() {
+    const logBtn = document.getElementById('btn-log-settings');
+    if (!logBtn) return;
+
+    logBtn.onclick = function () {
+        const modal = document.getElementById('logPasswordModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            const input = document.getElementById('logPasswordInput');
+            const error = document.getElementById('logPasswordError');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 100);
+            }
+            if (error) error.style.display = 'none';
+        }
+    };
+
+    // Add Enter key handler for password input
+    const passwordInput = document.getElementById('logPasswordInput');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const verifyBtn = document.getElementById('logPasswordConfirmBtn');
+                if (verifyBtn) verifyBtn.click();
+            }
+        });
+    }
+
+    const verifyBtn = document.getElementById('logPasswordConfirmBtn');
+    if (verifyBtn) {
+        verifyBtn.onclick = async function () {
+            const input = document.getElementById('logPasswordInput');
+            const error = document.getElementById('logPasswordError');
+            if (!input || !error) return;
+
+            const password = input.value.trim();
+            if (!password) {
+                error.textContent = 'Vui lòng nhập mật khẩu';
+                error.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/log/verify_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json();
+
+                if (data.ok && data.verified) {
+                    const pwModal = document.getElementById('logPasswordModal');
+                    if (pwModal) pwModal.style.display = 'none';
+                    openLogToggleModal();
+                } else {
+                    error.textContent = 'Mật khẩu không đúng';
+                    error.style.display = 'block';
+                }
+            } catch (err) {
+                error.textContent = 'Lỗi kết nối';
+                error.style.display = 'block';
+            }
+        };
+    }
+
+    const cancelPwBtn = document.getElementById('logPasswordCancelBtn');
+    if (cancelPwBtn) {
+        cancelPwBtn.onclick = function () {
+            const modal = document.getElementById('logPasswordModal');
+            if (modal) modal.style.display = 'none';
+        };
+    }
+
+    const closeToggleBtn = document.getElementById('logToggleCloseBtn');
+    if (closeToggleBtn) {
+        closeToggleBtn.onclick = function () {
+            const modal = document.getElementById('logToggleModal');
+            if (modal) modal.style.display = 'none';
+        };
+    }
+
+    const toggleCheckbox = document.getElementById('logToggleCheckbox');
+    if (toggleCheckbox) {
+        toggleCheckbox.onchange = async function () {
+            const enabled = this.checked;
+            try {
+                const res = await fetch('/api/log/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    updateLogStatusDisplay(data.suppress_enabled);
+                }
+            } catch (err) {
+                console.error('Lỗi toggle log:', err);
+            }
+        };
+    }
+}
+
+async function openLogToggleModal() {
+    const modal = document.getElementById('logToggleModal');
+    if (!modal) return;
+
+    try {
+        const res = await fetch('/api/log/status');
+        const data = await res.json();
+
+        const checkbox = document.getElementById('logToggleCheckbox');
+        if (checkbox) {
+            checkbox.checked = data.suppress_enabled || false;
+        }
+
+        updateLogStatusDisplay(data.suppress_enabled || false);
+        modal.style.display = 'flex';
+    } catch (err) {
+        console.error('Lỗi load log status:', err);
+    }
+}
+
+function updateLogStatusDisplay(enabled) {
+    const statusText = document.getElementById('logStatusText');
+    if (statusText) {
+        statusText.textContent = enabled ? 'Đang tắt log' : 'Đang bật log';
+        statusText.style.color = enabled ? '#f44336' : '#4CAF50';
+    }
+}
+
 function initConfirmModalBindings() {
     const btn = document.getElementById('confirmSaveBtn');
     if (!btn) return;
@@ -463,6 +618,12 @@ function initConfirmModalBindings() {
                 window.configData.ACCOUNT_ID = newId;
             }
         } catch (_) { }
+
+        try {
+            await refreshCreditAsync();
+        } catch (_) {
+            setCreditDisplayEmpty();
+        }
 
         userIdSpan.contentEditable = 'false';
 
@@ -1016,6 +1177,7 @@ function initSettingsAccountBindings() {
 window.onload = async function () {
     await loadOverlays();
     initConfirmModalBindings();
+    initLogSettingsBindings();
     initExitAppBindings();
     initTabBindings();
 

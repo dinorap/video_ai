@@ -9,6 +9,10 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+*.build/
+*.dist/
+*.onefile-build/
+VideoCreator.zip
 develop-eggs/
 dist/
 downloads/

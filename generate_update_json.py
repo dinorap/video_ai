@@ -1,41 +1,35 @@
+"""Tạo lại update.json từ VideoCreator.zip đã build (sau khi có --zip hoặc zip thủ công)."""
 import hashlib
 import json
-import os
+import sys
+from pathlib import Path
 
-ZIP_FILE = "VideoCreator.zip"
+from version import CURRENT_VERSION, UPDATE_ZIP_NAME
 
-def calculate_sha256(filepath):
-    """Tính SHA256 hash của file"""
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for byte_block in iter(lambda: f.read(8192), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
+ROOT = Path(__file__).resolve().parent
+ZIP_PATH = ROOT / UPDATE_ZIP_NAME
 
-if not os.path.exists(ZIP_FILE):
-    print(f"❌ Không tìm thấy file {ZIP_FILE}")
-    print(f"   Vui lòng đảm bảo file ZIP nằm trong thư mục hiện tại")
-    exit(1)
 
-print(f"📦 Đang tính SHA256 hash của {ZIP_FILE}...")
-sha256 = calculate_sha256(ZIP_FILE)
+def main() -> None:
+    if not ZIP_PATH.is_file():
+        print(f"[ERROR] Không thấy {ZIP_PATH}")
+        print("Chạy: python build_fast_c++.py --release --clean --zip")
+        sys.exit(1)
 
-update_info = {
-    "version": "v1.0.1",
-    "sha256": sha256,
-    "release_notes": "Phiên bản đầu tiên với tính năng OTA update"
-}
+    h = hashlib.sha256()
+    with open(ZIP_PATH, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
 
-# Lưu file update.json
-with open("update.json", "w", encoding="utf-8") as f:
-    json.dump(update_info, f, indent=2, ensure_ascii=False)
+    payload = {
+        "version": CURRENT_VERSION,
+        "sha256": h.hexdigest(),
+        "release_notes": f"Release {CURRENT_VERSION}",
+    }
+    out = ROOT / "update.json"
+    out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
 
-print(f"✅ Đã tạo file update.json")
-print(f"\nNội dung:")
-print(json.dumps(update_info, indent=2, ensure_ascii=False))
-print(f"\n📋 Các bước tiếp theo:")
-print(f"1. Truy cập: https://github.com/dinorap/video-release/releases/tag/v1.0.1")
-print(f"2. Click 'Edit release'")
-print(f"3. Kéo thả file 'update.json' vào phần assets")
-print(f"4. Click 'Update release'")
-print(f"5. Refresh trang web của bạn - nút cập nhật sẽ xuất hiện!")
+
+if __name__ == "__main__":
+    main()

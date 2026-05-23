@@ -1,11 +1,11 @@
 from dinorap_updater import OTAUpdater
 import json
 
-CURRENT_VERSION = "v1.0.0"
+from version import CURRENT_VERSION, GITHUB_REPO, GITHUB_USER
 
 updater = OTAUpdater(
-    github_user="dinorap",
-    github_repo="video-release",
+    github_user=GITHUB_USER,
+    github_repo=GITHUB_REPO,
     current_version=CURRENT_VERSION
 )
 
@@ -21,7 +21,7 @@ import requests
 print(f"\n" + "="*60)
 print("Direct GitHub API Check:")
 print("="*60)
-r = requests.get('https://api.github.com/repos/dinorap/video-release/releases/latest')
+r = requests.get(f'https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest')
 if r.status_code == 200:
     data = r.json()
     print(f"Latest Release Tag: {data['tag_name']}")

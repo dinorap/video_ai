@@ -1258,3 +1258,57 @@ body.theme-princess .btn-update:hover {
             0 2px 8px rgba(0, 0, 0, 0.4);
     }
 }
+
+/* Log Toggle Switch Styles */
+.log-toggle-switch {
+    position: relative;
+    display : inline-block;
+    width   : 60px;
+    height  : 34px;
+}
+
+.log-toggle-switch input {
+    opacity: 0;
+    width  : 0;
+    height : 0;
+}
+
+.log-toggle-slider {
+    position        : absolute;
+    cursor          : pointer;
+    top             : 0;
+    left            : 0;
+    right           : 0;
+    bottom          : 0;
+    background-color: #4CAF50;
+    transition      : 0.4s;
+    border-radius   : 34px;
+}
+
+.log-toggle-slider:before {
+    position        : absolute;
+    content         : "";
+    height          : 26px;
+    width           : 26px;
+    left            : 4px;
+    bottom          : 4px;
+    background-color: white;
+    transition      : 0.4s;
+    border-radius   : 50%;
+}
+
+input:checked+.log-toggle-slider {
+    background-color: #f44336;
+}
+
+input:checked+.log-toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.log-toggle-slider:hover {
+    box-shadow: 0 0 8px rgba(0, 230, 118, 0.5);
+}
+
+input:checked+.log-toggle-slider:hover {
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
+}
