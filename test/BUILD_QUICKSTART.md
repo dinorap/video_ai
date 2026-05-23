@@ -14,7 +14,7 @@ Output: `dist\VideoCreator\` (exe + config + templaces...)
 python pack_release_update.py
 ```
 
-Tao: `VideoCreator.zip` + `update.json` (zip toan bo `dist/VideoCreator`, **khong** gom `config/` `storage/`)
+Tao: `VideoCreator.zip` + `update.json` (co **ca config/** trong ZIP)
 
 ## Upload GitHub
 
