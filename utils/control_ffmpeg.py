@@ -192,7 +192,7 @@ def merge_video_clips(
     if len(clips) == 0:
         raise ValueError("No clips")
     if len(clips) == 1:
-        # 🔇 Copy video nhưng TẮT audio gốc
+        # Copy video với audio gốc (Grok video có audio)
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         cmd = [
             "ffmpeg", 
@@ -200,9 +200,7 @@ def merge_video_clips(
             "-loglevel", "error", 
             "-y", 
             "-i", clips[0], 
-            "-map", "0:v",  # CHỈ map video
-            "-c:v", "copy",  # Copy video codec (nhanh)
-            "-an",  # 🔇 TẮT HẾT audio
+            "-c", "copy",  # Copy cả video và audio
             out_path
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
@@ -232,9 +230,7 @@ def merge_video_clips(
                 "0",
                 "-i",
                 list_file,
-                "-map", "0:v",  # 🔇 CHỈ map video, KHÔNG map audio
-                "-c:v", "copy",  # Copy video codec (nhanh)
-                "-an",  # 🔇 TẮT HẾT audio
+                "-c", "copy",  # Copy cả video và audio
                 out_path,
             ]
             subprocess.run(cmd, cwd=TRANSCODE_DIR, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
@@ -248,8 +244,15 @@ def merge_video_clips(
 
     # xfade chain
     durations = [_ffprobe_duration(p) for p in clips]
+    
+    # Debug: In ra độ dài của từng clip
+    print(f"[DEBUG] Clip durations: {durations}")
+    for i, (clip, dur) in enumerate(zip(clips, durations)):
+        print(f"[DEBUG] Clip {i+1}: {os.path.basename(clip)} = {dur}s")
+    
     # fallback if probe fails
     if any(d <= 0 for d in durations):
+        print(f"[WARNING] Some clips have invalid duration, falling back to concat")
         transition = ""
         return merge_video_clips(clips, out_path, effect_key="", transition_duration=transition_duration)
 
@@ -272,11 +275,13 @@ def merge_video_clips(
 
     v_last = f"vx{len(clips)-1}" if len(clips) > 1 else "v0"
 
-    # 🔇 KHÔNG ghép âm thanh gốc từ các clip (sẽ thêm nhạc nền sau)
-    # Chỉ ghép video, bỏ qua audio để tránh loạn âm thanh
-    # Audio sẽ được thêm vào sau bằng apply_background_music()
-
-    filter_complex = ";".join(filter_lines)
+    # Ghép audio từ các clips (Grok video có audio)
+    audio_lines = []
+    for i in range(len(clips)):
+        audio_lines.append(f"[{i}:a]")
+    audio_concat = "".join(audio_lines) + f"concat=n={len(clips)}:v=0:a=1[aout]"
+    
+    filter_complex = ";".join(filter_lines) + ";" + audio_concat
     cmd = [
         "ffmpeg",
         "-hide_banner",
@@ -288,8 +293,8 @@ def merge_video_clips(
         filter_complex,
         "-map",
         f"[{v_last}]",
-        # ❌ KHÔNG map audio từ clips gốc
-        # "-map", "[aout]",  # ← Đã XÓA dòng này
+        "-map",
+        "[aout]",  # Map audio đã ghép
         "-c:v",
         "libx264",
         "-preset",
@@ -298,7 +303,10 @@ def merge_video_clips(
         "23",
         "-pix_fmt",
         "yuv420p",
-        "-an",  # 🔇 TẮT HẾT audio (không encode audio)
+        "-c:a",
+        "aac",  # Encode audio
+        "-b:a",
+        "192k",
         "-movflags",
         "+faststart",
         out_path,

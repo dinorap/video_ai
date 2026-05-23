@@ -40,7 +40,8 @@ DEV_MODE = "--release" not in sys.argv
 RELEASE_MODE = "--release" in sys.argv
 CLEAN_BUILD = "--clean" in sys.argv
 # --dev = alias rõ ràng (cùng hành vi mặc định)
-MAKE_ZIP = "--zip" in sys.argv
+MAKE_ZIP = "--zip" in sys.argv or "--zip-only" in sys.argv
+ZIP_ONLY = "--zip-only" in sys.argv
 
 JOBS = max(1, min(8, (os.cpu_count() or 4)))
 
@@ -327,7 +328,7 @@ def create_release_zip() -> tuple[Path, Path]:
         zip_path.unlink()
 
     print(f"[ZIP] Creating {UPDATE_ZIP_NAME} for GitHub OTA...")
-    print("      (không gồm config/ — ghi đè merge, giữ dữ liệu user)")
+    print("      (excludes config/ - merge overlay, keeps user files)")
     file_count = 0
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for root, dirs, files in os.walk(DIST_DIR):
@@ -367,14 +368,21 @@ def main() -> None:
     print()
 
     try:
-        clean_old_build()
-        run_nuitka_main()
-        copy_resources()
-        print()
-        print("[SUCCESS] BUILD COMPLETED")
-        print(f"  Run: {DIST_DIR / (APP_NAME + '.exe')}")
+        if ZIP_ONLY:
+            if not DIST_DIR.is_dir():
+                raise RuntimeError(f"dist not found: {DIST_DIR} — run full build first")
+            print("[ZIP-ONLY] Skipping Nuitka, packaging existing dist/")
+        else:
+            clean_old_build()
+            run_nuitka_main()
+            copy_resources()
+            print()
+            print("[SUCCESS] BUILD COMPLETED")
+            print(f"  Run: {DIST_DIR / (APP_NAME + '.exe')}")
         if MAKE_ZIP:
             create_release_zip()
+            print()
+            print("[SUCCESS] RELEASE PACKAGE READY")
     except subprocess.CalledProcessError as exc:
         print(f"\n[FAILED] Nuitka exit code {exc.returncode}")
         sys.exit(exc.returncode or 1)

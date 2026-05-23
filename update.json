@@ -1,5 +1,5 @@
 {
-  "version": "v1.0.1",
-  "sha256": "da0dc0d7e48af2a420c6f2ba15cbe6c8fefca11a738168cd289f3e1e98a96a3e",
-  "release_notes": "Phiên bản đầu tiên với tính năng OTA update"
+  "version": "v1.0.0",
+  "sha256": "1769efed0512b8728e305cf11fede932efd0e1a56c9892e6ef581405ec748666",
+  "release_notes": "Release v1.0.0"
 }
