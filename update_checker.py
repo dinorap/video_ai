@@ -8,8 +8,9 @@ from typing import Optional
 from silent_download import _http_get_json, download_and_prepare_update
 
 
-DEFAULT_OWNER = "AnhTuan2003ml"
-DEFAULT_REPO = "creat_video"
+from version import GITHUB_REPO as DEFAULT_REPO
+from version import GITHUB_USER as DEFAULT_OWNER
+from version import UPDATE_ZIP_NAME
 
 
 def _append_log(app_dir: str, msg: str) -> None:
@@ -98,7 +99,17 @@ def _pick_zip_asset(release_json: dict) -> Optional[str]:
     if not isinstance(assets, list):
         assets = []
 
-    # Prefer .zip
+    preferred = UPDATE_ZIP_NAME.lower()
+
+    for a in assets:
+        try:
+            name = str((a or {}).get("name") or "").lower()
+            url = str((a or {}).get("browser_download_url") or "").strip()
+            if url and name == preferred:
+                return url
+        except Exception:
+            pass
+
     for a in assets:
         try:
             name = str((a or {}).get("name") or "").lower()

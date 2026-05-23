@@ -16,13 +16,30 @@ import zipfile
 from pathlib import Path
 import urllib.request
 
-OWNER = "AnhTuan2003ml"
-REPO = "creat_video"
-API_LATEST = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
-ASSET_PREFIX = "creat_video"
-UA = "CreatVideoUpdater"
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
-APP_DIR = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+from version import GITHUB_REPO as REPO
+from version import GITHUB_USER as OWNER
+from version import UPDATE_ZIP_NAME
+
+API_LATEST = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
+ASSET_PREFIX = UPDATE_ZIP_NAME.replace(".zip", "").lower()
+UA = "VideoCreatorUpdater"
+
+def _running_as_exe() -> bool:
+    if getattr(sys, "frozen", False):
+        return True
+    exe = os.path.basename(sys.executable).lower()
+    return exe.endswith(".exe") and "python" not in exe
+
+
+APP_DIR = (
+    Path(sys.executable).parent
+    if _running_as_exe()
+    else Path(__file__).resolve().parent.parent
+)
 
 SKIP_NAMES = {"update.py", "update.exe"}
 
@@ -119,10 +136,16 @@ def get_latest_release():
 
 def pick_zip_asset(release_json):
     assets = release_json.get("assets", []) or []
+    preferred = UPDATE_ZIP_NAME.lower()
 
     for a in assets:
         name = (a.get("name") or "").lower()
-        if name.endswith(".zip") and name.startswith(ASSET_PREFIX.lower()):
+        if name == preferred:
+            return a.get("browser_download_url")
+
+    for a in assets:
+        name = (a.get("name") or "").lower()
+        if name.endswith(".zip") and name.startswith(ASSET_PREFIX):
             return a.get("browser_download_url")
 
     for a in assets:

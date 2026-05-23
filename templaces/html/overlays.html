@@ -35,7 +35,8 @@
     <div class="audio-overlay-backdrop" onclick="closeVideoOverlay()"></div>
     <div class="audio-overlay-content" style="max-width: 980px; width: calc(100% - 40px);">
         <div id="videoTitle" class="audio-title">Xem video</div>
-        <video id="videoPlayer" controls style="width: 100%; margin-top: 10px; max-height: 70vh; background: #000;"></video>
+        <video id="videoPlayer" controls
+            style="width: 100%; margin-top: 10px; max-height: 70vh; background: #000;"></video>
         <button type="button" class="audio-overlay-close" onclick="closeVideoOverlay()">×</button>
     </div>
 </div>
@@ -138,13 +139,65 @@
 <div id="paymentOverlay" class="modal-overlay" style="display:none;">
     <div class="modal-box" style="max-width: 560px; width: 92%;">
         <div style="font-weight: 900; font-size: 18px; margin-bottom: 10px;">Hết Credit - Thanh toán</div>
-        <div id="paymentOverlayMessage" style="opacity: 0.92; line-height: 1.35;">Đã hết lượt. Vui lòng thanh toán để tiếp tục.</div>
+        <div id="paymentOverlayMessage" style="opacity: 0.92; line-height: 1.35;">Đã hết lượt. Vui lòng thanh toán để
+            tiếp tục.</div>
         <div style="display:flex; align-items:center; justify-content:center; margin: 14px 0 10px;">
-            <div id="paymentOverlayQr" title="QR Mock" style="width: 240px; height: 240px; border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.95) 0, rgba(255,255,255,0.95) 10px, rgba(0,0,0,0.95) 10px, rgba(0,0,0,0.95) 20px); border: 6px solid rgba(255,255,255,0.16);"></div>
+            <div id="paymentOverlayQr" title="QR Mock"
+                style="width: 240px; height: 240px; border-radius: 12px; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.95) 0, rgba(255,255,255,0.95) 10px, rgba(0,0,0,0.95) 10px, rgba(0,0,0,0.95) 20px); border: 6px solid rgba(255,255,255,0.16);">
+            </div>
         </div>
-        <div style="text-align:center; opacity: 0.85; font-size: 13px; margin-top: 8px;">Quét QR để thanh toán (mô phỏng)</div>
+        <div style="text-align:center; opacity: 0.85; font-size: 13px; margin-top: 8px;">Quét QR để thanh toán (mô
+            phỏng)</div>
         <div class="modal-buttons" style="margin-top: 12px; justify-content: flex-end;">
             <button type="button" class="modal-cancel" onclick="closePaymentOverlay()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Log Settings Modal - Password Protection -->
+<div id="logPasswordModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div style="font-weight: 600; font-size: 16px; margin-bottom: 12px;">
+            <i class="fas fa-lock"></i> Nhập mật khẩu
+        </div>
+        <div style="opacity: 0.85; margin-bottom: 12px;">
+            Nhập mật khẩu để truy cập cài đặt log
+        </div>
+        <input id="logPasswordInput" type="password" class="input-control" placeholder="Nhập mật khẩu..."
+            style="margin-bottom: 8px;" />
+        <div id="logPasswordError" style="color: #ff4444; font-size: 13px; margin-bottom: 8px; display: none;"></div>
+        <div class="modal-buttons">
+            <button id="logPasswordConfirmBtn" type="button" class="modal-confirm">Xác nhận</button>
+            <button id="logPasswordCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- Log Toggle Modal -->
+<div id="logToggleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div style="font-weight: 600; font-size: 16px; margin-bottom: 12px;">
+            <i class="fas fa-terminal"></i> Quản lý Log
+        </div>
+        <div style="opacity: 0.85; margin-bottom: 16px;">
+            Bật/tắt hiển thị log trong console
+        </div>
+        <div
+            style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 16px;">
+            <div>
+                <div style="font-weight: 500;">Trạng thái Log</div>
+                <div id="logStatusText" style="font-size: 13px; opacity: 0.7; margin-top: 4px;">Đang tải...</div>
+            </div>
+            <label class="log-toggle-switch">
+                <input type="checkbox" id="logToggleCheckbox">
+                <span class="log-toggle-slider"></span>
+            </label>
+        </div>
+        <div style="font-size: 13px; opacity: 0.7; margin-bottom: 12px;">
+            <i class="fas fa-info-circle"></i> Khi tắt log, tất cả print() và logging sẽ bị ẩn
+        </div>
+        <div class="modal-buttons">
+            <button id="logToggleCloseBtn" type="button" class="modal-cancel">Đóng</button>
         </div>
     </div>
 </div>

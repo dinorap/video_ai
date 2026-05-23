@@ -12,52 +12,86 @@ from typing import Dict, Any
 
 import json
 import time
+import hashlib
+
+# ============================================================================
+# LOG SUPPRESS SETUP
+# ============================================================================
+from utils.log_suppress import install_print_hook, load_suppress_from_settings
+install_print_hook()
+
+try:
+    load_suppress_from_settings()
+except Exception:
+    pass
+# ============================================================================
 
 # ============================================================================
 # OTA UPDATE SETUP
 # ============================================================================
-CURRENT_VERSION = "v1.0.0"  # Version hiện tại của ứng dụng
-UPDATE_ZIP_NAME = "VideoCreator.zip"  # Tên file ZIP trong GitHub release
+from version import CURRENT_VERSION, GITHUB_REPO, GITHUB_USER, UPDATE_ZIP_NAME
 
-# Khởi tạo updater
+# OTA: dinorap-updater (nút Cập nhật → tải ZIP + update.json → xcopy ghi đè, giữ file cũ)
 try:
     from dinorap_updater import OTAUpdater
-    
+
     updater = OTAUpdater(
-        github_user="dinorap",
-        github_repo="video-release",
-        current_version=CURRENT_VERSION
+        github_user=GITHUB_USER,
+        github_repo=GITHUB_REPO,
+        current_version=CURRENT_VERSION,
     )
-    
-    # Fix chọn nhầm ZIP khi release có nhiều asset .zip
-    # Upstream dinorap-updater lấy "zip đầu tiên" nên dễ tải nhầm bản cũ
-    _orig_check_for_update = updater.check_for_update
-    
-    def _patched_check_for_update():
-        info = _orig_check_for_update()
-        if not info or not info.get("has_update"):
-            return info
-        
-        # Nếu asset zip không đúng tên chuẩn, coi như invalid để tránh tải nhầm
-        dl = str(info.get("download_url") or "")
-        if dl and not dl.endswith("/" + UPDATE_ZIP_NAME):
-            return {
-                "has_update": True,
-                "version": info.get("version"),
-                "download_url": None,
-                "meta_url": info.get("meta_url"),
-                "body": (info.get("body") or "") + f"\n\n[Updater] Found update but ZIP asset name mismatch. Expected: {UPDATE_ZIP_NAME}",
-                "error": "zip_asset_name_mismatch",
-                "expected_zip": UPDATE_ZIP_NAME,
-            }
-        return info
-    
-    updater.check_for_update = _patched_check_for_update  # type: ignore[assignment]
-    
     UPDATER_AVAILABLE = True
 except ImportError:
     UPDATER_AVAILABLE = False
     updater = None
+
+
+def _github_check_for_update() -> Dict[str, Any]:
+    """Cần đủ VideoCreator.zip + update.json trên GitHub release."""
+    import requests
+    from packaging import version as pkg_version
+
+    url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.status_code != 200:
+            return {"has_update": False, "error": f"github_status_{resp.status_code}"}
+        data = resp.json()
+        latest_tag = str(data.get("tag_name") or "").strip()
+        if not latest_tag:
+            return {"has_update": False}
+
+        try:
+            if pkg_version.parse(latest_tag) <= pkg_version.parse(CURRENT_VERSION):
+                return {"has_update": False}
+        except Exception:
+            pass
+
+        zip_url = None
+        json_url = None
+        for asset in data.get("assets") or []:
+            name = str((asset or {}).get("name") or "")
+            if name == UPDATE_ZIP_NAME:
+                zip_url = (asset or {}).get("browser_download_url")
+            elif name == "update.json":
+                json_url = (asset or {}).get("browser_download_url")
+
+        if zip_url and json_url:
+            return {
+                "has_update": True,
+                "version": latest_tag,
+                "download_url": zip_url,
+                "meta_url": json_url,
+                "body": data.get("body", "") or "",
+            }
+
+        return {
+            "has_update": False,
+            "error": "missing_release_assets",
+            "expected": [UPDATE_ZIP_NAME, "update.json"],
+        }
+    except Exception as exc:
+        return {"has_update": False, "error": str(exc)}
 
 # dinorap_updater chỉ cho phép update khi sys.frozen=True
 # Với một số bản Nuitka, cờ này có thể không được set dù đang chạy file .exe
@@ -106,8 +140,6 @@ from utils.control_script import (
     upload_temp_video_handler,
 )
 
-from update_checker import start_background_update_check, check_and_prepare_update_once
-
 EXE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 BUNDLE_DIR = getattr(sys, '_MEIPASS', EXE_DIR)
 
@@ -131,49 +163,44 @@ def get_version():
 if UPDATER_AVAILABLE and updater:
     @app.route('/api/update/check', methods=['GET'])
     def check_for_update():
-        """Kiểm tra update mới"""
+        """Kiểm tra update mới (VideoCreator.zip + update.json)"""
         try:
-            info = updater.check_for_update()
-            return jsonify(info)
+            return jsonify(_github_check_for_update())
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-    
-    @app.route('/api/update/download', methods=['POST'])
-    def download_update():
-        """Download update"""
+
+    @app.route('/api/update/perform', methods=['POST'])
+    def perform_update():
+        """Tải ZIP, verify SHA256 từ update.json, xcopy ghi đè file có trong bản mới, restart."""
         try:
-            data = request.get_json() or {}
-            download_url = data.get('download_url')
-            if not download_url:
-                return jsonify({"error": "download_url required"}), 400
-            
-            result = updater.download_update(download_url)
-            return jsonify(result)
+            if not getattr(sys, "frozen", False):
+                return jsonify({
+                    "success": False,
+                    "error": "Cập nhật OTA chỉ chạy trên bản EXE đã build",
+                }), 400
+
+            info = _github_check_for_update()
+            if not info.get("has_update"):
+                err = info.get("error") or "Không có bản cập nhật"
+                return jsonify({"success": False, "error": err}), 400
+
+            if getattr(updater, "_is_updating", False):
+                return jsonify({"success": False, "error": "Đang cập nhật, vui lòng chờ..."}), 409
+
+            def _run_install():
+                try:
+                    updater._download_and_install(info)  # type: ignore[attr-defined]
+                except Exception as exc:
+                    print(f"[Updater] Install failed: {exc}")
+
+            threading.Thread(target=_run_install, daemon=True).start()
+            return jsonify({
+                "success": True,
+                "message": "Đang tải và cài đặt. Ứng dụng sẽ tự khởi động lại...",
+                "version": info.get("version"),
+            })
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route('/api/update/apply', methods=['POST'])
-    def apply_update():
-        """Apply update đã download"""
-        try:
-            data = request.get_json() or {}
-            zip_path = data.get('zip_path')
-            if not zip_path:
-                return jsonify({"error": "zip_path required"}), 400
-            
-            result = updater.apply_update(zip_path)
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route('/api/update/status', methods=['GET'])
-    def update_status():
-        """Lấy trạng thái update"""
-        try:
-            status = updater.get_status()
-            return jsonify(status)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/debug/runtime', methods=['GET'])
 def debug_runtime():
@@ -238,6 +265,184 @@ def _read_account_id_from_config() -> str:
     except Exception:
         pass
     return ''
+
+
+def _count_reserved_video_credits() -> int:
+    """Số task video đang chạy (đã trừ lượt, chưa xong)."""
+    reserved = 0
+    try:
+        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        if not os.path.exists(tasks_file):
+            return 0
+        with open(tasks_file, 'r', encoding='utf-8') as f:
+            raw = f.read()
+        try:
+            tasks_data = json.loads(raw) if raw else []
+        except Exception:
+            tasks_data = []
+        for it in (tasks_data if isinstance(tasks_data, list) else []):
+            try:
+                st = str((it or {}).get('status') or '').lower()
+                if st not in ('processing', 'pending'):
+                    continue
+                name = str((it or {}).get('name') or '')
+                if name.startswith('Tạo video:'):
+                    reserved += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return reserved
+
+
+def _evaluate_credit_for_batch(*, requested_tasks: int) -> Dict[str, Any]:
+    """Kiểm tra lượt trước khi tạo video/ảnh hàng loạt.
+
+    Returns dict: ok, status, body (error payload), meta, allowed_tasks
+    """
+    from utils.callserver import check_async, is_bypass_key
+
+    meta: Dict[str, Any] = {
+        'user_id': '',
+        'count': 0,
+        'limit': 0,
+        'reserved': 0,
+        'remaining': 0,
+        'bypass': False,
+    }
+    req = max(0, int(requested_tasks or 0))
+
+    user_id = _read_account_id_from_config()
+    if not user_id:
+        return {
+            'ok': False,
+            'status': 400,
+            'body': {
+                'ok': False,
+                'error': 'Vui lòng nhập User ID',
+                'redirect_to_payment': False,
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    meta['user_id'] = user_id
+
+    if is_bypass_key(user_id):
+        meta['bypass'] = True
+        meta['remaining'] = req
+        return {
+            'ok': True,
+            'status': 200,
+            'body': None,
+            'meta': meta,
+            'allowed_tasks': req,
+        }
+
+    try:
+        credit_check = _run_coro_blocking(check_async(user_id))
+    except Exception as exc:
+        return {
+            'ok': False,
+            'status': 400,
+            'body': {
+                'ok': False,
+                'error': f'Không thể kiểm tra lượt: {exc}',
+                'redirect_to_payment': False,
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    if credit_check is None:
+        return {
+            'ok': False,
+            'status': 400,
+            'body': {
+                'ok': False,
+                'error': 'Không thể kiểm tra lượt',
+                'redirect_to_payment': False,
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    data0 = getattr(credit_check, 'data', None)
+    if not isinstance(data0, dict):
+        data0 = {}
+
+    try:
+        meta['count'] = int(data0.get('count') or 0)
+    except Exception:
+        meta['count'] = 0
+    try:
+        meta['limit'] = int(data0.get('limit') or 0)
+    except Exception:
+        meta['limit'] = 0
+
+    meta['reserved'] = _count_reserved_video_credits()
+    meta['remaining'] = max(0, int(meta['limit'] - meta['count'] - meta['reserved']))
+
+    if not bool(getattr(credit_check, 'success', False)):
+        return {
+            'ok': False,
+            'status': 400,
+            'body': {
+                'ok': False,
+                'error': str(getattr(credit_check, 'message', '') or '') or 'Không thể kiểm tra lượt',
+                'redirect_to_payment': bool(getattr(credit_check, 'redirect_to_payment', False)),
+                'count': meta['count'],
+                'limit': meta['limit'],
+                'reserved': meta['reserved'],
+                'remaining': meta['remaining'],
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    # limit=0 hoặc hết remaining → chặn (trước đây bỏ qua vì chỉ check khi limit > 0)
+    if meta['limit'] <= 0 or meta['remaining'] <= 0:
+        return {
+            'ok': False,
+            'status': 402,
+            'body': {
+                'ok': False,
+                'error': 'Đã hết lượt',
+                'redirect_to_payment': True,
+                'count': meta['count'],
+                'limit': meta['limit'],
+                'reserved': meta['reserved'],
+                'remaining': meta['remaining'],
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    allowed = min(req, meta['remaining']) if req > 0 else 0
+    if req > 0 and allowed <= 0:
+        return {
+            'ok': False,
+            'status': 402,
+            'body': {
+                'ok': False,
+                'error': 'Đã hết lượt',
+                'redirect_to_payment': True,
+                'count': meta['count'],
+                'limit': meta['limit'],
+                'reserved': meta['reserved'],
+                'remaining': meta['remaining'],
+            },
+            'meta': meta,
+            'allowed_tasks': 0,
+        }
+
+    return {
+        'ok': True,
+        'status': 200,
+        'body': None,
+        'meta': meta,
+        'allowed_tasks': allowed if req > 0 else meta['remaining'],
+    }
 
 
 def _cache_check_result(user_id: str, res_obj) -> None:
@@ -551,6 +756,83 @@ def access_denied_handler(exc: PermissionError):
     
     # Nếu không phải update endpoint, raise lại exception
     raise exc
+
+
+@app.route('/api/log/verify_password', methods=['POST'])
+def verify_log_password():
+    """Xác thực mật khẩu để truy cập cài đặt log"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        password = str(payload.get('password') or '').strip()
+        
+        # Hash mật khẩu đúng: 20032003
+        correct_hash = hashlib.sha256('20032003'.encode()).hexdigest()
+        input_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        if input_hash == correct_hash:
+            return jsonify({'ok': True, 'verified': True})
+        else:
+            return jsonify({'ok': True, 'verified': False, 'error': 'Mật khẩu không đúng'})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/log/status', methods=['GET'])
+def get_log_status():
+    """Lấy trạng thái hiện tại của log suppression"""
+    try:
+        from utils.log_suppress import is_suppress_all_logs
+        
+        config_path = os.path.join(EXE_DIR, 'config', 'config.json')
+        suppress_enabled = False
+        
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            suppress_enabled = bool(data.get('SUPPRESS_ALL_LOGS', False))
+        
+        return jsonify({
+            'ok': True,
+            'suppress_enabled': suppress_enabled,
+            'runtime_status': is_suppress_all_logs()
+        })
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/log/toggle', methods=['POST'])
+def toggle_log_suppression():
+    """Bật/tắt log suppression"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        enabled = bool(payload.get('enabled', False))
+        
+        from utils.log_suppress import set_suppress_all_logs
+        
+        # Update runtime
+        set_suppress_all_logs(enabled)
+        
+        # Update config file
+        config_path = os.path.join(EXE_DIR, 'config', 'config.json')
+        
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            data = {}
+        
+        data['SUPPRESS_ALL_LOGS'] = enabled
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            'ok': True,
+            'suppress_enabled': enabled,
+            'message': 'Đã tắt log' if enabled else 'Đã bật log'
+        })
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
 @app.route('/api/check', methods=['POST'])
@@ -1406,88 +1688,19 @@ def create_videos_batch_start():
         if not (os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label)):
             return jsonify({'ok': False, 'error': 'Vui lòng chọn thư mục lưu kết quả'}), 400
 
-        credit_user_id = ''
-        credit_check = None
-        credit_count = 0
-        credit_limit = 0
-        credit_reserved = 0
-        credit_remaining = 0
-        try:
-            credit_user_id = _read_account_id_from_config()
-        except Exception:
-            credit_user_id = ''
+        credit_gate = _evaluate_credit_for_batch(requested_tasks=len(tasks))
+        if not credit_gate.get('ok'):
+            body = credit_gate.get('body') or {}
+            return jsonify(body), int(credit_gate.get('status') or 400)
 
-        if credit_user_id:
-            try:
-                from utils.callserver import check_async
-
-                credit_check = _run_coro_blocking(check_async(credit_user_id))
-                data0 = getattr(credit_check, 'data', None)
-                if not isinstance(data0, dict):
-                    data0 = {}
-                try:
-                    credit_count = int(data0.get('count') or 0)
-                except Exception:
-                    credit_count = 0
-                try:
-                    credit_limit = int(data0.get('limit') or 0)
-                except Exception:
-                    credit_limit = 0
-
-                try:
-                    tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
-                    if os.path.exists(tasks_file):
-                        import json
-                        with open(tasks_file, 'r', encoding='utf-8') as f:
-                            raw = f.read()
-                        try:
-                            tasks_data = json.loads(raw) if raw else []
-                        except Exception:
-                            tasks_data = []
-
-                        for it in (tasks_data if isinstance(tasks_data, list) else []):
-                            try:
-                                st = str((it or {}).get('status') or '').lower()
-                                if st not in ('processing', 'pending'):
-                                    continue
-                                name = str((it or {}).get('name') or '')
-                                if not name.startswith('Tạo video:'):
-                                    continue
-                                credit_reserved += 1
-                            except Exception:
-                                pass
-                except Exception:
-                    credit_reserved = 0
-
-                credit_remaining = max(0, int(credit_limit - credit_count - credit_reserved))
-            except Exception:
-                credit_check = None
-
-        if credit_user_id and credit_check is not None and not bool(getattr(credit_check, 'success', False)):
-            return jsonify({
-                'ok': False,
-                'error': str(getattr(credit_check, 'message', '') or '') or 'Không thể kiểm tra lượt',
-                'redirect_to_payment': bool(getattr(credit_check, 'redirect_to_payment', False)),
-                'count': credit_count,
-                'limit': credit_limit,
-                'reserved': credit_reserved,
-                'remaining': credit_remaining,
-            }), 400
-
-        if credit_user_id and credit_limit > 0:
-            if credit_remaining <= 0:
-                return jsonify({
-                    'ok': False,
-                    'error': 'Đã hết lượt',
-                    'redirect_to_payment': True,
-                    'count': credit_count,
-                    'limit': credit_limit,
-                    'reserved': credit_reserved,
-                    'remaining': credit_remaining,
-                }), 402
-
-            if len(tasks) > credit_remaining:
-                tasks = list(tasks)[:credit_remaining]
+        cmeta = credit_gate.get('meta') or {}
+        credit_count = int(cmeta.get('count') or 0)
+        credit_limit = int(cmeta.get('limit') or 0)
+        credit_reserved = int(cmeta.get('reserved') or 0)
+        credit_remaining = int(cmeta.get('remaining') or 0)
+        allowed_tasks = int(credit_gate.get('allowed_tasks') or 0)
+        if allowed_tasks < len(tasks):
+            tasks = list(tasks)[:allowed_tasks]
 
         from utils.control_profile import init_global_browser, get_global_browser
         from utils.control_script import create_video_task
@@ -1569,7 +1782,7 @@ def create_videos_batch_start():
             'count': credit_count,
             'limit': credit_limit,
             'reserved': credit_reserved,
-            'remaining': max(0, credit_remaining - len(mapping)) if (credit_user_id and credit_limit > 0) else None,
+            'remaining': max(0, credit_remaining - len(mapping)),
         })
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
@@ -1860,7 +2073,17 @@ def clear_tasks():
 
 @app.route("/save_config", methods=["POST"])
 def save_config():
-    return save_config_handler()
+    resp = save_config_handler()
+    try:
+        data = request.get_json(silent=True) or {}
+        if 'ACCOUNT_ID' in data or 'account_id' in data:
+            with _ACCOUNT_CHECK_CACHE_LOCK:
+                _ACCOUNT_CHECK_CACHE['ts'] = 0.0
+                _ACCOUNT_CHECK_CACHE['user_id'] = ''
+                _ACCOUNT_CHECK_CACHE['result'] = None
+    except Exception:
+        pass
+    return resp
 
 
 @app.route("/cleanup_temp", methods=["POST"])
@@ -2190,63 +2413,6 @@ def _disable_windows_console_quickedit() -> None:
         pass
 
 
-def _maybe_check_and_apply_update_on_startup() -> None:
-    try:
-        if not getattr(sys, 'frozen', False):
-            return
-        if os.name != 'nt':
-            return
-
-        # Apply if already prepared
-        ready_path = os.path.join(EXE_DIR, 'temp', 'update_ready.json')
-        if os.path.isfile(ready_path):
-            _maybe_apply_silent_update_on_startup()
-            return
-
-        # Startup immediate check (blocking, best-effort)
-        try:
-            prepared = bool(check_and_prepare_update_once(app_dir=EXE_DIR))
-        except Exception:
-            prepared = False
-
-        if not prepared:
-            return
-
-        if os.path.isfile(ready_path):
-            _maybe_apply_silent_update_on_startup()
-    except Exception:
-        pass
-
-
-def _maybe_apply_silent_update_on_startup() -> None:
-    try:
-        if not getattr(sys, 'frozen', False):
-            return
-        if os.name != 'nt':
-            return
-
-        ready_path = os.path.join(EXE_DIR, 'temp', 'update_ready.json')
-        if not os.path.isfile(ready_path):
-            return
-
-        updater = os.path.join(EXE_DIR, 'update.exe')
-        if not os.path.isfile(updater):
-            return
-
-        try:
-            subprocess.Popen(
-                [updater, '--apply-ready', ready_path, '--app', sys.executable],
-                cwd=EXE_DIR,
-                creationflags=subprocess.CREATE_NEW_CONSOLE,
-            )
-        except Exception:
-            return
-
-        _force_exit_later(0.4)
-    except Exception:
-        pass
-
-
 # ============================================================================
 # VEO3 API ENDPOINTS
 # ============================================================================
@@ -2482,6 +2648,21 @@ def create_videos_veo3_handler():
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
+
+        # Ước lượng số video = tổng số cảnh hợp lệ (mỗi cảnh 1 file)
+        estimated_videos = 0
+        for t in tasks:
+            scenes = (t or {}).get('scenes', [])
+            if not isinstance(scenes, list):
+                continue
+            for scene in scenes:
+                if str((scene or {}).get('image') or '').strip() and str((scene or {}).get('prompt') or '').strip():
+                    estimated_videos += 1
+        credit_gate = _evaluate_credit_for_batch(requested_tasks=max(1, estimated_videos))
+        if not credit_gate.get('ok'):
+            body = credit_gate.get('body') or {}
+            return jsonify(body), int(credit_gate.get('status') or 400)
+        veo3_credit_slots = int(credit_gate.get('allowed_tasks') or 0)
         
         # 🔥 CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo video Veo3
         # Veo3 cần kết nối qua CDP để điều khiển browser
@@ -2507,8 +2688,11 @@ def create_videos_veo3_handler():
 
         runner_tasks = []
         mapping = []
+        veo3_slots_left = veo3_credit_slots
 
         for t in tasks:
+            if veo3_slots_left <= 0:
+                break
             form_id = str((t or {}).get('form_id') or '').strip()
             scenes = t.get('scenes', [])
 
@@ -2517,11 +2701,15 @@ def create_videos_veo3_handler():
 
             # Veo3 video: mỗi scene = 1 video riêng
             for idx, scene in enumerate(scenes):
+                if veo3_slots_left <= 0:
+                    break
                 image_data = str((scene or {}).get('image') or '')
                 prompt = str((scene or {}).get('prompt') or '')
 
                 if not image_data or not prompt:
                     continue
+
+                veo3_slots_left -= 1
 
                 out_name = f'{form_id}_scene{idx}_{uuid.uuid4().hex[:4]}.mp4'
                 out_abs = os.path.join(out_folder_abs, out_name)
@@ -2637,8 +2825,6 @@ def create_videos_veo3_handler():
 
 if __name__ == "__main__":
     _disable_windows_console_quickedit()
-
-    _maybe_check_and_apply_update_on_startup()
 
     try:
         import socket

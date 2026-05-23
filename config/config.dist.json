@@ -1,0 +1,10 @@
+{
+  "API": "https://server.autovideo9999.store/",
+  "VERSION": "1.0.0",
+  "ACCOUNT_ID": "",
+  "TTS": "",
+  "API_KEY": "",
+  "cloneVideoModel": "gemini-2.5-flash",
+  "cloneVideoApiKey": "",
+  "CDP_PORT": 9212
+}

@@ -1,0 +1,13 @@
+# 1) Build EXE (Nuitka only)
+python build_fast_c++.py --release --clean
+
+# 2) Pack GitHub OTA (ZIP + update.json, includes config/)
+python pack_release_update.py
+
+# Dev fast
+python build_fast_c++.py --dev
+
+# Output
+#   dist\VideoCreator\     -> zip gui khach hoac lam nguon pack
+#   VideoCreator.zip       -> upload GitHub
+#   update.json            -> upload GitHub

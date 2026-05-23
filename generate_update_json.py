@@ -1,41 +1,39 @@
+"""Chi tao lai update.json tu VideoCreator.zip (da co zip)."""
 import hashlib
 import json
-import os
+import sys
+from datetime import datetime
+from pathlib import Path
 
-ZIP_FILE = "VideoCreator.zip"
+from version import CURRENT_VERSION, UPDATE_ZIP_NAME
 
-def calculate_sha256(filepath):
-    """Tính SHA256 hash của file"""
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for byte_block in iter(lambda: f.read(8192), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
+ROOT = Path(__file__).resolve().parent
+ZIP_FILE = ROOT / UPDATE_ZIP_NAME
+JSON_FILE = ROOT / "update.json"
 
-if not os.path.exists(ZIP_FILE):
-    print(f"❌ Không tìm thấy file {ZIP_FILE}")
-    print(f"   Vui lòng đảm bảo file ZIP nằm trong thư mục hiện tại")
-    exit(1)
 
-print(f"📦 Đang tính SHA256 hash của {ZIP_FILE}...")
-sha256 = calculate_sha256(ZIP_FILE)
+def main() -> None:
+    if not ZIP_FILE.is_file():
+        print(f"[ERROR] Missing {ZIP_FILE} — run pack_release_update.py")
+        sys.exit(1)
 
-update_info = {
-    "version": "v1.0.1",
-    "sha256": sha256,
-    "release_notes": "Phiên bản đầu tiên với tính năng OTA update"
-}
+    log = " ".join(sys.argv[1:]).strip() or f"Release {CURRENT_VERSION}"
 
-# Lưu file update.json
-with open("update.json", "w", encoding="utf-8") as f:
-    json.dump(update_info, f, indent=2, ensure_ascii=False)
+    h = hashlib.sha256()
+    with open(ZIP_FILE, "rb") as f:
+        for block in iter(lambda: f.read(4096), b""):
+            h.update(block)
 
-print(f"✅ Đã tạo file update.json")
-print(f"\nNội dung:")
-print(json.dumps(update_info, indent=2, ensure_ascii=False))
-print(f"\n📋 Các bước tiếp theo:")
-print(f"1. Truy cập: https://github.com/dinorap/video-release/releases/tag/v1.0.1")
-print(f"2. Click 'Edit release'")
-print(f"3. Kéo thả file 'update.json' vào phần assets")
-print(f"4. Click 'Update release'")
-print(f"5. Refresh trang web của bạn - nút cập nhật sẽ xuất hiện!")
+    data = {
+        "version": CURRENT_VERSION,
+        "sha256": h.hexdigest(),
+        "release_date": datetime.now().strftime("%Y-%m-%d"),
+        "update_log": log,
+        "release_notes": log,
+    }
+    JSON_FILE.write_text(json.dumps(data, indent=4, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(data, indent=4, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
