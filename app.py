@@ -88,6 +88,7 @@ from utils.control_music import (
 from utils.control_ffmpeg import (
     serve_transcoded_handler,
     transcode_video_handler,
+    transcode_video_from_path_handler,
     extract_frame_handler,
     apply_background_music,
 )
@@ -1805,6 +1806,13 @@ def upload_temp_video():
     return upload_temp_video_handler()
 
 
+@app.route("/temp_video/<filename>")
+def serve_temp_video(filename):
+    """Serve video files from temp_video directory"""
+    temp_video_dir = os.path.join(EXE_DIR, "temp_video")
+    return send_from_directory(temp_video_dir, filename)
+
+
 @app.route("/listscripts")
 def list_scripts():
     return list_scripts_handler()
@@ -1823,6 +1831,11 @@ def save_script():
 @app.route("/transcode_for_web", methods=["POST"])
 def transcode_for_web():
     return transcode_video_handler()
+
+
+@app.route("/transcode_from_path", methods=["POST"])
+def transcode_from_path():
+    return transcode_video_from_path_handler()
 
 
 @app.route("/delete_script", methods=["POST"])

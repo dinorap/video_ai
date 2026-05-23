@@ -400,7 +400,7 @@ async function generateScript() {
                 } else {
                     alert(msg);
                 }
-                try { apiKeyInput && apiKeyInput.focus(); } catch (_) {}
+                try { apiKeyInput && apiKeyInput.focus(); } catch (_) { }
                 return;
             }
 
@@ -538,7 +538,7 @@ function initCloneVideoPage() {
 
     const setCloneVideoObjectUrl = (url) => {
         if (window.__cloneVideoState.objectUrl && window.__cloneVideoState.objectUrl !== url) {
-            try { URL.revokeObjectURL(window.__cloneVideoState.objectUrl); } catch (_) {}
+            try { URL.revokeObjectURL(window.__cloneVideoState.objectUrl); } catch (_) { }
         }
         window.__cloneVideoState.objectUrl = url;
     };
@@ -552,34 +552,6 @@ function initCloneVideoPage() {
         return '';
     };
 
-    const tryExtractCloneVideoFrame = async (file) => {
-        if (!file) return null;
-
-        const sig = `${file.name}:${file.size}:${file.lastModified}`;
-        if (window.__cloneVideoState.lastFileSig === sig && cloneVideoPreviewThumb && cloneVideoPreviewThumb.src) {
-            return cloneVideoPreviewThumb.src;
-        }
-        window.__cloneVideoState.lastFileSig = sig;
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const res = await fetch('/extract_frame', {
-                method: 'POST',
-                body: formData,
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok || !body.ok || !body.data_url) {
-                return null;
-            }
-            return body.data_url;
-        } catch (err) {
-            console.error('Lỗi gọi /extract_frame:', err);
-            return null;
-        }
-    };
-
     if (cloneVideoChooseBtn && cloneVideoFileInput) {
         cloneVideoChooseBtn.onclick = function () {
             cloneVideoFileInput.click();
@@ -590,8 +562,6 @@ function initCloneVideoPage() {
             const file = this.files[0];
             window.__cloneVideoState.file = file;
             window.__cloneVideoState.serverVideoPath = '';
-            const url = URL.createObjectURL(file);
-            setCloneVideoObjectUrl(url);
 
             if (cloneVideoPathInput) {
                 cloneVideoPathInput.value = file.name;
@@ -609,54 +579,46 @@ function initCloneVideoPage() {
 
                 if (!uploadRes.ok || !uploadBody.ok) {
                     alert('Không thể copy video vào thư mục tạm: ' + (uploadBody.error || 'Lỗi không xác định'));
-                } else {
-                    window.__cloneVideoState.serverVideoPath = uploadBody.video_path;
-                    if (cloneVideoPathInput) {
-                        const current = String(cloneVideoPathInput.value || '').trim();
-                        const isAbs = /^[a-zA-Z]:\\/.test(current);
-                        if (!isAbs) {
-                            cloneVideoPathInput.value = uploadBody.filename || file.name;
-                        }
+                    return;
+                }
+
+                window.__cloneVideoState.serverVideoPath = uploadBody.video_path;
+                const serverFilename = uploadBody.filename || file.name;
+
+                // Tạo server URL để dùng cho cả preview và click xem full
+                const serverUrl = `/temp_video/${serverFilename}`;
+                setCloneVideoObjectUrl(serverUrl);
+
+                if (cloneVideoPathInput) {
+                    const current = String(cloneVideoPathInput.value || '').trim();
+                    const isAbs = /^[a-zA-Z]:\\/.test(current);
+                    if (!isAbs) {
+                        cloneVideoPathInput.value = serverFilename;
                     }
                 }
-            } catch (err) {
-                console.error('Lỗi gọi /upload_temp_video:', err);
-                alert('Lỗi khi copy video vào thư mục tạm');
-            }
 
-            const thumbUrl = await tryExtractCloneVideoFrame(file);
-            if (thumbUrl && cloneVideoPreviewThumb) {
-                cloneVideoPreviewThumb.src = thumbUrl;
-                cloneVideoPreviewThumb.style.display = 'block';
-                if (cloneVideoPreviewVideo) {
-                    cloneVideoPreviewVideo.style.display = 'none';
-                    cloneVideoPreviewVideo.removeAttribute('src');
-                    cloneVideoPreviewVideo.load();
-                }
-            } else {
+                // Hiển thị video từ server thay vì blob URL
                 if (cloneVideoPreviewThumb) {
                     cloneVideoPreviewThumb.removeAttribute('src');
                     cloneVideoPreviewThumb.style.display = 'none';
                 }
 
                 if (cloneVideoPreviewVideo) {
-                    const mime = file.type || guessMimeTypeFromName(file.name);
-                    const playable = mime ? cloneVideoPreviewVideo.canPlayType(mime) : '';
+                    cloneVideoPreviewVideo.style.display = 'block';
+                    // Sử dụng URL từ server thay vì blob URL
+                    cloneVideoPreviewVideo.src = serverUrl;
+                    cloneVideoPreviewVideo.load();
 
-                    if (playable) {
-                        cloneVideoPreviewVideo.style.display = 'block';
-                        cloneVideoPreviewVideo.src = url;
-                        cloneVideoPreviewVideo.load();
-                    } else {
-                        cloneVideoPreviewVideo.style.display = 'none';
-                        cloneVideoPreviewVideo.removeAttribute('src');
-                        cloneVideoPreviewVideo.load();
-                    }
+                    // Ẩn nút play khi video đã load xong
+                    cloneVideoPreviewVideo.onloadeddata = function () {
+                        if (cloneVideoPlayIcon) {
+                            cloneVideoPlayIcon.style.display = 'none';
+                        }
+                    };
                 }
-            }
-
-            if (cloneVideoPlayIcon) {
-                cloneVideoPlayIcon.style.display = 'flex';
+            } catch (err) {
+                console.error('Lỗi gọi /upload_temp_video:', err);
+                alert('Lỗi khi copy video vào thư mục tạm');
             }
         };
     }
@@ -666,17 +628,23 @@ function initCloneVideoPage() {
             const url = window.__cloneVideoState?.objectUrl;
             if (!url) return;
             const title = (cloneVideoPathInput && cloneVideoPathInput.value) ? cloneVideoPathInput.value : 'Xem video';
-            const file = window.__cloneVideoState?.file;
+            const serverPath = window.__cloneVideoState?.serverVideoPath;
 
-            if (!file) return;
+            // Sử dụng đường dẫn server đã upload thay vì upload lại file
+            if (!serverPath) {
+                alert('Video chưa được upload. Vui lòng chọn lại video.');
+                return;
+            }
 
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                const res = await fetch('/transcode_for_web', {
+                const res = await fetch('/transcode_from_path', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        video_path: serverPath
+                    })
                 });
                 const body = await res.json().catch(() => ({}));
 

@@ -318,6 +318,63 @@ def serve_transcoded_handler(filename: str):
     return send_from_directory(TRANSCODE_DIR, filename)
 
 
+def transcode_video_from_path_handler():
+    """Transcode video from server path (for already uploaded files)"""
+    data = request.get_json() or {}
+    video_path = data.get("video_path", "").strip()
+    
+    if not video_path:
+        return jsonify({"ok": False, "error": "Missing video_path"}), 400
+    
+    if not os.path.exists(video_path):
+        return jsonify({"ok": False, "error": f"Video file not found: {video_path}"}), 404
+    
+    job_id = uuid.uuid4().hex
+    out_name = f"{job_id}.mp4"
+    out_path = os.path.join(TRANSCODE_DIR, out_name)
+
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        video_path,
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "23",
+        "-movflags",
+        "+faststart",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        out_path,
+    ]
+
+    try:
+        result = subprocess.run(cmd, cwd=TRANSCODE_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+        
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            stderr = result.stderr.decode("utf-8", errors="ignore") if result.stderr else ""
+            stdout = result.stdout.decode("utf-8", errors="ignore") if result.stdout else ""
+            error_msg = stderr or stdout or "Transcode failed - no output file"
+            return jsonify({"ok": False, "error": error_msg}), 500
+            
+    except FileNotFoundError:
+        return jsonify({"ok": False, "error": "ffmpeg not found. Please install ffmpeg and add it to PATH"}), 500
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Transcode error: {str(exc)}"}), 500
+
+    return jsonify({"ok": True, "url": f"/transcoded/{out_name}", "mime": "video/mp4"})
+
+
 def transcode_video_handler():
     if "file" not in request.files:
         return jsonify({"ok": False, "error": "Missing file"}), 400
@@ -334,7 +391,7 @@ def transcode_video_handler():
     try:
         file.save(in_path)
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        return jsonify({"ok": False, "error": f"Failed to save file: {str(exc)}"}), 500
 
     cmd = [
         "ffmpeg",
@@ -362,21 +419,25 @@ def transcode_video_handler():
     ]
 
     try:
-        subprocess.run(cmd, cwd=TRANSCODE_DIR, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+        result = subprocess.run(cmd, cwd=TRANSCODE_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
+        
+        # Check if output file exists and has content
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            stderr = result.stderr.decode("utf-8", errors="ignore") if result.stderr else ""
+            stdout = result.stdout.decode("utf-8", errors="ignore") if result.stdout else ""
+            error_msg = stderr or stdout or "Transcode failed - no output file"
+            return jsonify({"ok": False, "error": error_msg}), 500
+            
     except FileNotFoundError:
-        return jsonify({"ok": False, "error": "ffmpeg not found"}), 500
-    except subprocess.CalledProcessError as exc:
-        err = exc.stderr.decode("utf-8", errors="ignore") if exc.stderr else str(exc)
-        return jsonify({"ok": False, "error": err}), 500
+        return jsonify({"ok": False, "error": "ffmpeg not found. Please install ffmpeg and add it to PATH"}), 500
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Transcode error: {str(exc)}"}), 500
     finally:
         try:
             if os.path.exists(in_path):
                 os.remove(in_path)
         except OSError:
             pass
-
-    if not os.path.exists(out_path):
-        return jsonify({"ok": False, "error": "Transcode failed"}), 500
 
     return jsonify({"ok": True, "url": f"/transcoded/{out_name}", "mime": "video/mp4"})
 
