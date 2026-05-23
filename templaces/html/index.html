@@ -13,6 +13,27 @@
 
 <body class="theme-default">
 
+    <!-- INTRO SPLASH -->
+    <div id="intro-splash" style="display:none;">
+        <video id="intro-video" muted autoplay playsinline>
+            <source src="/ico/intro.mp4" type="video/mp4">
+        </video>
+        <div class="intro-overlay">
+            <div class="intro-content">
+                <div class="intro-line intro-line-1">AI Cinema</div>
+                <div class="intro-line intro-line-2">for</div>
+                <div class="intro-line intro-line-3">Fashion</div>
+                <div class="intro-divider"></div>
+                <div class="intro-line intro-line-4">Kiến tạo hàng nghìn video TikTok</div>
+                <div class="intro-line intro-line-5">thời trang bằng trí tuệ nhân tạo</div>
+                <div class="intro-line intro-line-6">Tự động hóa toàn bộ quy trình</div>
+                <div class="intro-line intro-line-7">từ xu hướng đến viral</div>
+            </div>
+            <div class="intro-skip">Nhấn vào bất kỳ để tiếp tục</div>
+        </div>
+    </div>
+
+    <!-- OLD STARTUP SPLASH (fallback) -->
     <div id="startup-splash"
         style="position: fixed; inset: 0; background: transparent; display: flex; align-items: center; justify-content: center; z-index: 20000;">
         <img src="/ico/logo.ico" alt="logo" style="width: 140px; height: 140px; opacity: 0.95;" />
@@ -61,6 +82,15 @@
             </div>
             <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon" src="/ico/settings.png"
                     alt=""> THIẾT LẬP TÀI KHOẢN</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-folder-open"></i> Thư mục lưu kết quả</div>
+        <div class="group-box result-folder-box">
+            <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
+                <span class="folder-symbol">▣</span>
+                <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
+            </button>
+            <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
         </div>
 
         <div class="section-title"><img class="section-icon" src="/ico/setting-lines.png" alt=""> Cấu hình chạy</div>
@@ -140,15 +170,6 @@
         </div>
         <!-- input ẩn dùng để chọn file nhạc / video thêm mới -->
         <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
-
-        <div class="section-title"><i class="fas fa-folder-open"></i> Thư mục lưu kết quả</div>
-        <div class="group-box result-folder-box">
-            <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
-                <span class="folder-symbol">▣</span>
-                <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
-            </button>
-            <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
-        </div>
     </div>
 
     <div id="main-wrapper">

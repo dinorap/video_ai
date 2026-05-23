@@ -380,38 +380,98 @@ function _setVideoSceneStatus(videoIndex, text) {
     el.textContent = String(text || '');
 }
 
-function _setVideoProgress(videoIndex, percent, sceneIndex, totalScenes) {
-    const fill = document.getElementById(`progress-fill-${videoIndex}`);
-    const text = document.getElementById(`progress-text-${videoIndex}`);
-    const p = Math.max(0, Math.min(100, parseInt(String(percent || '0'), 10) || 0));
-    if (fill) fill.style.width = `${p}%`;
-    if (text) {
-        const sIdx = parseInt(String(sceneIndex || ''), 10);
-        const sTot = parseInt(String(totalScenes || ''), 10);
-        if (Number.isFinite(sIdx) && sIdx > 0 && Number.isFinite(sTot) && sTot > 0) {
-            text.textContent = `${sIdx}/${sTot}`;
-        } else {
-            text.textContent = `${p}%`;
-        }
+function _updatePromptsList(videoIndex) {
+    const container = document.getElementById(`video-prompts-list-${videoIndex}`);
+    const rowEl = document.getElementById(`video-row-${videoIndex}`);
+    if (!container || !rowEl) return;
+
+    container.innerHTML = '';
+
+    const raw = String(rowEl.dataset.scenes || '');
+    let scenes = [];
+    if (raw) {
+        try { scenes = JSON.parse(raw) || []; } catch (e) { scenes = []; }
     }
+
+    if (!Array.isArray(scenes) || scenes.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'scene-item';
+        empty.innerHTML = `<span class="scene-num">1</span><span class="scene-prompt empty">Chưa có prompt — bấm Thiết lập để thêm</span>`;
+        container.appendChild(empty);
+        return;
+    }
+
+    scenes.forEach((scene, idx) => {
+        const item = document.createElement('div');
+        item.className = 'scene-item';
+
+        const num = document.createElement('span');
+        num.className = 'scene-num';
+        num.textContent = idx + 1;
+
+        const text = document.createElement('span');
+        text.className = 'scene-prompt' + (!scene.prompt ? ' empty' : '');
+        text.textContent = scene.prompt || 'Chưa có prompt';
+
+        item.appendChild(num);
+        item.appendChild(text);
+        container.appendChild(item);
+    });
+}
+
+function _setVideoProgress(videoIndex, percent, sceneIndex, totalScenes) {
+    // Progress bar removed — only show scene status
+    _setVideoSceneStatus(videoIndex, sceneIndex && totalScenes ? `Tạo cảnh ${sceneIndex}/${totalScenes}` : '');
 }
 
 function _setVideoResultLink(videoIndex, url) {
     const el = document.getElementById(`video-result-link-${videoIndex}`);
+    const previewCol = document.getElementById(`video-preview-col-${videoIndex}`);
     if (!el) return;
     const u = String(url || '').trim();
     if (!u) {
         el.innerHTML = '';
         return;
     }
-    el.innerHTML = `<button id="video-remerge-btn-${videoIndex}" type="button" class="btn-header" style="padding: 8px 10px; font-size: 12px; font-weight: 900; width: 100%;">Ghép lại</button>`;
+
+    // Update preview thumbnail
+    if (previewCol) {
+        previewCol.innerHTML = '';
+        const video = document.createElement('video');
+        video.src = u;
+        video.style.cssText = 'width: 100%; height: 100%; object-fit: contain; border-radius: 10px;';
+        video.muted = true;
+        video.preload = 'metadata';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'preview-play';
+        const playBtn = document.createElement('div');
+        playBtn.className = 'play-btn';
+        overlay.appendChild(playBtn);
+
+        previewCol.appendChild(video);
+        previewCol.appendChild(overlay);
+
+        previewCol.onclick = async () => {
+            const freshUrl = u + (u.includes('?') ? '&' : '?') + `v=${Date.now()}`;
+            if (typeof window.openVideoOverlay === 'function') {
+                window.openVideoOverlay(freshUrl, `Video ${videoIndex}`);
+            } else if (typeof openVideoOverlay === 'function') {
+                openVideoOverlay(freshUrl, `Video ${videoIndex}`);
+            } else {
+                window.open(freshUrl, '_blank');
+            }
+        };
+    }
+
+    el.innerHTML = `<button class="remerge-btn" type="button">⟳ GHÉP LẠI</button>`;
     const btn = el.querySelector('button');
     if (btn) {
         btn.onclick = async () => {
             const rowEl = document.getElementById(`video-row-${videoIndex}`);
             const taskId = rowEl ? String(rowEl.dataset.taskId || '') : '';
             if (!taskId) {
-                if (typeof window.showSuccessOverlay === 'function') {
+                if (typeof window.showAutoError === 'function') {
                     window.showSuccessOverlay('Không tìm thấy task để ghép lại');
                 } else {
                     alert('Không tìm thấy task để ghép lại');
@@ -564,39 +624,100 @@ function _createVideoRow(index, defaultImage, titleText) {
     row.id = `video-row-${index}`;
     row.dataset.videoIndex = String(index);
     row.dataset.defaultImage = String(defaultImage || '');
-    row.style.cssText = 'padding: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px;';
 
+    // ============ COL 1: INPUT IMAGE ============
     const inputCol = document.createElement('div');
     inputCol.className = 'video-col input';
-    inputCol.id = `video-input-${index}`;
-    inputCol.style.cssText = 'display: flex; flex-direction: column; gap: 8px; font-weight: 900;';
+
     const inputLabel = document.createElement('div');
-    inputLabel.textContent = `Video ${index}`;
-    const previewWrap = document.createElement('div');
-    previewWrap.style.cssText = 'position: relative; width: 100%; max-width: 190px;';
+    inputLabel.style.cssText = 'font-size: 11px; font-weight: 900; color: var(--text-soft); text-align: center;';
+    inputLabel.textContent = `VIDEO ${index}`;
 
     const inputImg = document.createElement('img');
     inputImg.alt = 'input';
-    inputImg.style.cssText = 'width: 100%; max-width: 190px; max-height: 220px; height: auto; object-fit: contain; background: color-mix(in srgb, var(--card-bg) 75%, black); border-radius: 10px; border: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent); display: none;';
+    inputImg.style.cssText = 'width: 100%; max-height: 160px; object-fit: contain; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid var(--border-color);';
     if (defaultImage) {
         inputImg.src = defaultImage;
-        inputImg.style.display = '';
+    } else {
+        inputImg.style.display = 'none';
     }
 
+    inputCol.appendChild(inputLabel);
+    inputCol.appendChild(inputImg);
+
+    // ============ COL 2: PROMPTS ============
+    const promptsCol = document.createElement('div');
+    promptsCol.className = 'video-col prompts';
+
+    const promptsLabel = document.createElement('div');
+    promptsLabel.className = 'prompts-label';
+    promptsLabel.textContent = 'PROMPTS';
+
+    const sceneList = document.createElement('div');
+    sceneList.className = 'scene-list';
+    sceneList.id = `video-prompts-list-${index}`;
+
+    // Load existing prompts
+    const rawScenes = String(row.dataset.scenes || '');
+    if (rawScenes) {
+        try {
+            const scenes = JSON.parse(rawScenes) || [];
+            if (Array.isArray(scenes) && scenes.length > 0) {
+                scenes.forEach((scene, idx) => {
+                    const item = document.createElement('div');
+                    item.className = 'scene-item';
+                    const num = document.createElement('span');
+                    num.className = 'scene-num';
+                    num.textContent = idx + 1;
+                    const text = document.createElement('span');
+                    text.className = 'scene-prompt' + (!scene.prompt ? ' empty' : '');
+                    text.textContent = scene.prompt || 'Chưa có prompt';
+                    item.appendChild(num);
+                    item.appendChild(text);
+                    sceneList.appendChild(item);
+                });
+            } else {
+                sceneList.innerHTML = `<div class="scene-item"><span class="scene-num">1</span><span class="scene-prompt empty">Chưa có prompt — bấm Thiết lập</span></div>`;
+            }
+        } catch (e) {
+            sceneList.innerHTML = `<div class="scene-item"><span class="scene-num">1</span><span class="scene-prompt empty">Chưa có prompt — bấm Thiết lập</span></div>`;
+        }
+    } else {
+        sceneList.innerHTML = `<div class="scene-item"><span class="scene-num">1</span><span class="scene-prompt empty">Chưa có prompt — bấm Thiết lập</span></div>`;
+    }
+
+    const statusText = document.createElement('div');
+    statusText.className = 'scene-status';
+    statusText.id = `video-scene-status-${index}`;
+
+    promptsCol.appendChild(promptsLabel);
+    promptsCol.appendChild(sceneList);
+    promptsCol.appendChild(statusText);
+
+    // ============ COL 3: VIDEO PREVIEW ============
+    const previewCol = document.createElement('div');
+    previewCol.className = 'video-col preview';
+    previewCol.id = `video-preview-col-${index}`;
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'preview-placeholder';
+    placeholder.innerHTML = '<i class="fas fa-film"></i><span>Chưa có video</span>';
+
+    const previewPlay = document.createElement('div');
+    previewPlay.className = 'preview-play';
     const playBtn = document.createElement('div');
-    playBtn.id = `video-play-btn-${index}`;
-    playBtn.style.cssText = 'display:none; position:absolute; inset: 0; align-items:center; justify-content:center; cursor:pointer; border-radius: 10px; background: rgba(0,0,0,0.25);';
-    playBtn.innerHTML = `<div style="width: 54px; height: 54px; border-radius: 999px; background: rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; border: 1px solid rgba(255,255,255,0.35); font-size: 22px; font-weight: 900;">▶</div>`;
-    playBtn.onclick = async () => {
+    playBtn.className = 'play-btn';
+    previewPlay.appendChild(playBtn);
+
+    previewCol.appendChild(placeholder);
+    previewCol.appendChild(previewPlay);
+
+    previewCol.onclick = async () => {
         const rowEl = document.getElementById(`video-row-${index}`);
         const url = rowEl ? String(rowEl.dataset.resultUrl || '') : '';
         if (!url) return;
 
-        if (String(playBtn.dataset.loading || '') === '1') return;
-        playBtn.dataset.loading = '1';
         const ok = await _waitUrlReady(url, 12000);
-        playBtn.dataset.loading = '0';
-
         if (!ok) {
             if (typeof window.showSuccessOverlay === 'function') {
                 window.showSuccessOverlay('Video đang được chuẩn bị, vui lòng thử lại sau vài giây');
@@ -606,121 +727,43 @@ function _createVideoRow(index, defaultImage, titleText) {
             return;
         }
 
-        const title = `Video ${index}`;
         const freshUrl = url + (url.includes('?') ? '&' : '?') + `v=${Date.now()}`;
-        try {
-            if (rowEl) rowEl.dataset.resultUrl = freshUrl;
-        } catch (e) { }
-        _persistTaoVideoStateNow();
-
         if (typeof window.openVideoOverlay === 'function') {
-            window.openVideoOverlay(freshUrl, title);
+            window.openVideoOverlay(freshUrl, `Video ${index}`);
         } else if (typeof openVideoOverlay === 'function') {
-            openVideoOverlay(freshUrl, title);
+            openVideoOverlay(freshUrl, `Video ${index}`);
         } else {
             window.open(freshUrl, '_blank');
         }
     };
 
-    previewWrap.appendChild(inputImg);
-    previewWrap.appendChild(playBtn);
-
-    inputCol.appendChild(inputLabel);
-    inputCol.appendChild(previewWrap);
-
-    const progress = document.createElement('div');
-    progress.className = 'video-col progress';
-    progress.id = `video-progress-${index}`;
-    progress.innerHTML = `
-        <div style="flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 6px;">
-            <div style="font-weight: 900; font-size: 12px;">Tiến độ</div>
-            <div style="display:flex; align-items:center; gap: 8px;">
-                <div class="progress-bar" style="flex: 1; height: 10px; background: color-mix(in srgb, var(--card-bg) 70%, black); border: 1px solid var(--border-color); border-radius: 999px; overflow: hidden;">
-                    <div class="progress-fill" id="progress-fill-${index}" style="width: 0%; height: 100%; background: #00ff88;"></div>
-                </div>
-                <span class="progress-text" id="progress-text-${index}" style="flex: 0 0 auto; font-weight: 800; font-size: 12px;">0%</span>
-            </div>
-            <div id="video-scene-status-${index}" style="font-size: 12px; font-weight: 800; opacity: 0.9;"></div>
-        </div>
-    `.trim();
-    progress.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-
-    const effectCol = document.createElement('div');
-    effectCol.className = 'video-col effect';
-    effectCol.id = `video-effect-col-${index}`;
-    effectCol.style.cssText = 'display: flex; flex-direction: column; align-items: stretch; gap: 6px;';
-    const effectLabel = document.createElement('div');
-    effectLabel.textContent = 'Hiệu ứng ghép video';
-    effectLabel.style.cssText = 'font-weight: 900; font-size: 12px;';
-    const effectSelect = document.createElement('select');
-    effectSelect.className = 'input-control';
-    effectSelect.id = `video-effect-${index}`;
-    effectSelect.style.cssText = 'width: 100%; max-width: none;';
-    effectCol.appendChild(effectLabel);
-    effectCol.appendChild(effectSelect);
-    _populateEffectSelect(effectSelect, row);
-    try {
-        const oldChange = effectSelect.onchange;
-        effectSelect.onchange = (ev) => {
-            try {
-                if (typeof oldChange === 'function') oldChange(ev);
-            } catch (e) { }
-            _persistTaoVideoStateNow();
-        };
-    } catch (e) { }
-
-    const result = document.createElement('div');
-    result.className = 'video-col result';
-    result.id = `video-result-${index}`;
-    result.innerHTML = `<img src="" id="result-img-${index}" class="result-img" style="display:none; max-height: 84px; border-radius: 10px;" />`;
-
-    const settings = document.createElement('div');
-    settings.className = 'video-col settings';
-    settings.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
-
-    const badgeLabel = document.createElement('div');
-    badgeLabel.style.cssText = 'font-weight: 900; font-size: 11px; opacity: 0.8;';
-    badgeLabel.textContent = 'Kịch bản:';
-
-    const badge = document.createElement('div');
-    badge.id = `video-script-badge-${index}`;
-    badge.style.cssText = 'font-weight: 800; font-size: 12px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;';
-    badge.textContent = 'None';
+    // ============ COL 4: ACTIONS ============
+    const actionsCol = document.createElement('div');
+    actionsCol.className = 'video-col actions';
 
     const btnSetting = document.createElement('button');
-    btnSetting.className = 'btn-setting';
+    btnSetting.className = 'btn-row btn-setting';
     btnSetting.id = `video-btn-setting-${index}`;
-    btnSetting.type = 'button';
-    btnSetting.textContent = '⚙️ Thiết lập kịch bản';
-    btnSetting.style.cssText = 'width: 100%; height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border-color); background: color-mix(in srgb, var(--card-bg) 70%, black); color: var(--text-main); cursor: pointer; font-weight: 900; text-align: left;';
+    btnSetting.textContent = '⚙ THIẾT LẬP';
 
-    settings.appendChild(badgeLabel);
-    settings.appendChild(badge);
-    settings.appendChild(btnSetting);
-
-    const action = document.createElement('div');
-    action.className = 'video-col action';
     const btnCreate = document.createElement('button');
-    btnCreate.className = 'btn-create';
+    btnCreate.className = 'btn-row btn-create';
     btnCreate.id = `video-btn-create-${index}`;
-    btnCreate.type = 'button';
-    btnCreate.textContent = 'Tạo';
-    btnCreate.style.cssText = 'width: 100%; padding: 10px; border-radius: 10px; border: none; background: var(--gradient-btn); color: var(--text-main); font-weight: 900; cursor: pointer;';
-    const btnDelete = document.createElement('button');
-    btnDelete.className = 'btn-delete';
-    btnDelete.id = `video-btn-delete-${index}`;
-    btnDelete.type = 'button';
-    btnDelete.textContent = 'Xóa';
-    btnDelete.style.cssText = 'width: 100%; padding: 10px; border-radius: 10px; border: none; background: color-mix(in srgb, var(--border-color) 70%, transparent); color: var(--text-main); font-weight: 900; cursor: pointer;';
+    btnCreate.textContent = '▶ TẠO VIDEO';
 
-    action.style.cssText = 'display: flex; gap: 8px;';
-    action.appendChild(btnCreate);
-    action.appendChild(btnDelete);
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn-row btn-delete';
+    btnDelete.id = `video-btn-delete-${index}`;
+    btnDelete.textContent = '✕ XÓA';
 
     const resultLink = document.createElement('div');
+    resultLink.className = 'result-link';
     resultLink.id = `video-result-link-${index}`;
-    resultLink.style.cssText = 'margin-top: 8px; font-size: 12px; font-weight: 800;';
-    action.appendChild(resultLink);
+
+    actionsCol.appendChild(btnSetting);
+    actionsCol.appendChild(btnCreate);
+    actionsCol.appendChild(btnDelete);
+    actionsCol.appendChild(resultLink);
 
     btnSetting.onclick = async () => {
         const modal = _ensureVideoSettingsModal();
@@ -758,7 +801,7 @@ function _createVideoRow(index, defaultImage, titleText) {
                         };
                     });
                     rowEl.dataset.scenes = JSON.stringify(scenes);
-                    _updateScriptBadge(index);
+                    _updatePromptsList(index);
                 }
 
                 modal.style.display = 'none';
@@ -777,7 +820,6 @@ function _createVideoRow(index, defaultImage, titleText) {
                 const container = document.getElementById('videoSceneContainer');
                 if (!container) return;
 
-                // If we previously rendered an empty placeholder text, clear it before adding a form.
                 if (container.querySelectorAll('.scene-item').length === 0) {
                     container.innerHTML = '';
                 }
@@ -802,13 +844,13 @@ function _createVideoRow(index, defaultImage, titleText) {
                 const rowEl = document.getElementById(`video-row-${index}`);
                 if (rowEl) {
                     rowEl.dataset.scriptName = scriptSelect.value;
-                    rowEl.dataset.scenes = ''; // Reset custom scenes when script changes
+                    rowEl.dataset.scenes = '';
                 }
                 await _loadVideoScript(scriptSelect.value, index);
-                _updateScriptBadge(index);
+                _updatePromptsList(index);
             };
         }
-        _updateScriptBadge(index);
+        _updatePromptsList(index);
 
         const rowElForLoad = document.getElementById(`video-row-${index}`);
         const savedScenesRaw = rowElForLoad ? String(rowElForLoad.dataset.scenes || '') : '';
@@ -841,12 +883,11 @@ function _createVideoRow(index, defaultImage, titleText) {
         _persistTaoVideoStateNow();
     };
 
-    _updateScriptBadge(index);
+    // ============ APPEND ALL COLUMNS ============
     row.appendChild(inputCol);
-    row.appendChild(progress);
-    row.appendChild(effectCol);
-    row.appendChild(settings);
-    row.appendChild(action);
+    row.appendChild(promptsCol);
+    row.appendChild(previewCol);
+    row.appendChild(actionsCol);
     return row;
 }
 

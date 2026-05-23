@@ -1051,6 +1051,12 @@ window.onload = async function () {
         }
     } catch (_) { }
 
+    // Show intro splash if not already shown this session
+    showIntroSplash();
+
+    // Show intro splash if not already shown this session
+    showIntroSplash();
+
     document.addEventListener('keydown', function (e) {
         const userIdSpan = document.getElementById('userId');
         if (!userIdSpan) return;
@@ -1065,3 +1071,35 @@ window.onload = async function () {
         }
     });
 };
+
+// ========== INTRO SPLASH ==========
+function showIntroSplash() {
+    if (sessionStorage.getItem('introShown')) return;
+
+    const intro = document.getElementById('intro-splash');
+    if (!intro) return;
+
+    intro.style.display = 'flex';
+
+    const video = document.getElementById('intro-video');
+    if (video) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+
+        // Loop video until user clicks
+        video.loop = true;
+    }
+
+    const skip = () => {
+        sessionStorage.setItem('introShown', '1');
+        if (intro) intro.style.display = 'none';
+        if (video) video.pause();
+        document.removeEventListener('click', skip);
+        document.removeEventListener('keydown', skip);
+    };
+
+    document.addEventListener('click', skip, { once: true });
+    document.addEventListener('keydown', skip, { once: true });
+}
+
+try { window.showIntroSplash = showIntroSplash; } catch(e) {}
