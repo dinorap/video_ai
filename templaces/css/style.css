@@ -1306,7 +1306,7 @@ body.theme-princess .btn-update:hover {
 
 .intro-line {
     font-family    : 'Georgia', 'Times New Roman', serif;
-    font-style    : italic;
+    font-style    : normal;
     color         : #ffffff;
     text-shadow   : 0 0 40px rgba(255,255,255,0.5), 0 0 80px rgba(255,255,255,0.25), 2px 4px 20px rgba(0,0,0,0.4);
     letter-spacing: 0.05em;
@@ -1345,28 +1345,36 @@ body.theme-princess .btn-update:hover {
 }
 
 .intro-line-4 {
-    font-size    : clamp(20px, 2.8vw, 36px);
-    font-weight  : 400;
-    color        : rgba(255, 255, 255, 0.9);
+    font-size     : clamp(20px, 2.8vw, 36px);
+    font-weight   : 400;
+    color         : rgba(255, 255, 255, 0.9);
+    letter-spacing: normal;
+    word-spacing  : normal;
 }
 
 .intro-line-5 {
-    font-size    : clamp(18px, 2.5vw, 32px);
-    font-weight  : 300;
-    color        : rgba(255, 255, 255, 0.75);
+    font-size     : clamp(18px, 2.5vw, 32px);
+    font-weight   : 300;
+    color         : rgba(255, 255, 255, 0.75);
+    letter-spacing: normal;
+    word-spacing  : normal;
 }
 
 .intro-line-6 {
-    font-size    : clamp(18px, 2.5vw, 32px);
-    font-weight  : 400;
-    color        : rgba(255, 255, 255, 0.85);
+    font-size     : clamp(18px, 2.5vw, 32px);
+    font-weight   : 400;
+    color         : rgba(255, 255, 255, 0.85);
+    letter-spacing: normal;
+    word-spacing  : normal;
 }
 
 .intro-line-7 {
-    font-size    : clamp(22px, 3vw, 40px);
-    font-weight  : 600;
-    color        : rgba(255, 255, 255, 1);
-    text-shadow  : 0 0 30px rgba(255,255,255,0.6), 0 0 60px rgba(255,255,255,0.3);
+    font-size     : clamp(22px, 3vw, 40px);
+    font-weight   : 600;
+    color         : rgba(255, 255, 255, 1);
+    letter-spacing: normal;
+    word-spacing  : normal;
+    text-shadow   : 0 0 30px rgba(255,255,255,0.6), 0 0 60px rgba(255,255,255,0.3);
 }
 
 .intro-skip {
@@ -1386,4 +1394,18 @@ body.theme-princess .btn-update:hover {
 @keyframes skipBlink {
     0%, 100% { opacity: 0.25; }
     50% { opacity: 0.8; }
+}
+
+/* FIX: chống giãn chữ tiếng Việt trong intro */
+#intro-splash .intro-line-4,
+#intro-splash .intro-line-5,
+#intro-splash .intro-line-6,
+#intro-splash .intro-line-7 {
+    letter-spacing: 0 !important;
+    word-spacing: 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+    white-space: normal;
+    text-transform: none !important;
 }
