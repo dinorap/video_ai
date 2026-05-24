@@ -8,6 +8,8 @@ from typing import List
 
 from flask import jsonify, request, send_from_directory
 
+from utils.runtime_paths import get_ffmpeg_exe, get_ffprobe_exe
+
 
 TRANSCODE_DIR = os.path.join(tempfile.gettempdir(), "web_creat_video_transcoded")
 os.makedirs(TRANSCODE_DIR, exist_ok=True)
@@ -34,7 +36,7 @@ def _win_subprocess_kwargs():
 
 def _ffprobe_duration(path: str) -> float:
     cmd = [
-        "ffprobe",
+        get_ffprobe_exe(),
         "-hide_banner",
         "-loglevel",
         "error",
@@ -54,7 +56,7 @@ def _ffprobe_duration(path: str) -> float:
 def _ffprobe_has_audio(path: str) -> bool:
     try:
         cmd = [
-            "ffprobe",
+            get_ffprobe_exe(),
             "-hide_banner",
             "-loglevel",
             "error",
@@ -104,7 +106,7 @@ def apply_background_music(
     # Logic: Chỉ map audio từ input[1] (nhạc nền), KHÔNG map audio từ input[0] (video gốc)
     filter_complex = f"[1:a]volume={music_volume}[aout]"
     cmd = [
-        "ffmpeg",
+        get_ffmpeg_exe(),
         "-hide_banner",
         "-loglevel",
         "error",
@@ -195,7 +197,7 @@ def merge_video_clips(
         # Copy video với audio gốc (Grok video có audio)
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         cmd = [
-            "ffmpeg", 
+            get_ffmpeg_exe(), 
             "-hide_banner", 
             "-loglevel", "error", 
             "-y", 
@@ -219,7 +221,7 @@ def merge_video_clips(
                     safe_p = str(p).replace("'", "'\\''")
                     f.write("file '" + safe_p + "'\n")
             cmd = [
-                "ffmpeg",
+                get_ffmpeg_exe(),
                 "-hide_banner",
                 "-loglevel",
                 "error",
@@ -283,7 +285,7 @@ def merge_video_clips(
     
     filter_complex = ";".join(filter_lines) + ";" + audio_concat
     cmd = [
-        "ffmpeg",
+        get_ffmpeg_exe(),
         "-hide_banner",
         "-loglevel",
         "error",
@@ -342,7 +344,7 @@ def transcode_video_from_path_handler():
     out_path = os.path.join(TRANSCODE_DIR, out_name)
 
     cmd = [
-        "ffmpeg",
+        get_ffmpeg_exe(),
         "-hide_banner",
         "-loglevel",
         "error",
@@ -402,7 +404,7 @@ def transcode_video_handler():
         return jsonify({"ok": False, "error": f"Failed to save file: {str(exc)}"}), 500
 
     cmd = [
-        "ffmpeg",
+        get_ffmpeg_exe(),
         "-hide_banner",
         "-loglevel",
         "error",
@@ -464,7 +466,7 @@ def extract_frame_handler():
         file.save(in_path)
 
         cmd = [
-            "ffmpeg",
+            get_ffmpeg_exe(),
             "-hide_banner",
             "-loglevel",
             "error",

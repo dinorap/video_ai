@@ -9,11 +9,23 @@ from utils.clone_video import generate_prompt_json
 
 import sys
 
-BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPT_DIR = os.path.join(BASE_DIR, "config", "KichBan")
-os.makedirs(SCRIPT_DIR, exist_ok=True)
+from utils.path_helper import (
+    BASE_DIR as _BASE,
+    CONFIG_FILE,
+    SCRIPT_DIR as _SCRIPT,
+    TASKS_FILE,
+    TEMP_DIR,
+    TEMP_VIDEO_DIR as _TEMP_VIDEO,
+    pstr,
+)
 
-TEMP_VIDEO_DIR = os.path.join(BASE_DIR, "temp_video")
+BASE_DIR = pstr(_BASE)
+SCRIPT_DIR = pstr(_SCRIPT)
+TEMP_VIDEO_DIR = pstr(_TEMP_VIDEO)
+TEMP_DIR = pstr(TEMP_DIR)
+CONFIG_FILE_PATH = pstr(CONFIG_FILE)
+TASKS_FILE_PATH = pstr(TASKS_FILE)
+os.makedirs(SCRIPT_DIR, exist_ok=True)
 os.makedirs(TEMP_VIDEO_DIR, exist_ok=True)
 
 
@@ -36,7 +48,7 @@ def update_task_status(task_id, status, error=None, result_file=None, **extra_fi
     """
     Cập nhật trạng thái task trong config/tasks.json
     """
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     try:
         tasks = _read_json_file(tasks_file)
         if not isinstance(tasks, list):
@@ -64,7 +76,7 @@ def create_image_task(task_name, model):
     """
     Tạo một task mới trong config/tasks.json
     """
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     task_id = str(uuid.uuid4())
     task = {
         "id": task_id,
@@ -87,7 +99,7 @@ def create_image_task(task_name, model):
 
 
 def create_video_task(task_name, model):
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     task_id = str(uuid.uuid4())
     task = {
         "id": task_id,
@@ -147,7 +159,7 @@ def upload_temp_video_handler():
 
 
 def clear_tasks_handler():
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     try:
         _write_json_file(tasks_file, [])
         return jsonify({"ok": True})
@@ -292,7 +304,7 @@ def generate_script_handler():
 
     # Always persist model + api_key to config/config.json (even if generation fails)
     try:
-        config_file = os.path.join(BASE_DIR, "config", "config.json")
+        config_file = CONFIG_FILE_PATH
         cfg = _read_json_file(config_file)
         cfg["cloneVideoModel"] = model
         cfg["cloneVideoApiKey"] = api_key
@@ -322,7 +334,7 @@ def generate_script_handler():
     if not os.path.exists(video_path):
         return jsonify({"ok": False, "error": "Video file not found"}), 400
 
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     tasks = []
     try:
         tasks = _read_json_file(tasks_file)
@@ -411,7 +423,7 @@ def generate_script_handler():
             task["status"] = "failed"
             task["error"] = "AI returned empty scenes"
             try:
-                dbg_dir = os.path.join(BASE_DIR, "temp")
+                dbg_dir = TEMP_DIR
                 os.makedirs(dbg_dir, exist_ok=True)
                 dbg_path = os.path.join(dbg_dir, f"clone_video_ai_empty_{task_id}.txt")
                 with open(dbg_path, "w", encoding="utf-8") as f:
@@ -463,7 +475,7 @@ def list_tasks_handler():
     """
     Flask view: trả về danh sách tác vụ từ config/tasks.json
     """
-    tasks_file = os.path.join(BASE_DIR, "config", "tasks.json")
+    tasks_file = TASKS_FILE_PATH
     
     if not os.path.exists(tasks_file):
         return jsonify({"ok": True, "tasks": []})
@@ -488,7 +500,7 @@ def save_config_handler():
     data = request.get_json() or {}
     
     try:
-        config_file = os.path.join(BASE_DIR, "config", "config.json")
+        config_file = CONFIG_FILE_PATH
         
         # Read existing config
         config = {}
@@ -496,9 +508,10 @@ def save_config_handler():
             with open(config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
         
-        # Update with new values
+        # Update with new values (version chi o version.py, khong luu trong config)
         config.update(data)
-        
+        config.pop("VERSION", None)
+
         # Save back
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=2)

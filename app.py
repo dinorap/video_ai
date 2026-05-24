@@ -14,6 +14,32 @@ import json
 import time
 import hashlib
 
+from utils.path_helper import (
+    BASE_DIR,
+    BUNDLE_DIR,
+    CONFIG_DIR,
+    CONFIG_FILE,
+    GENERATED_DIR,
+    ICO_DIR,
+    MUSIC_DIR,
+    TASKS_FILE,
+    TEMP_VIDEO_DIR,
+    TEMPLACES_DIR,
+    THEME_IMG_DIR,
+    ensure_runtime_dirs,
+    get_paths_diagnostic,
+    init_frozen_flag,
+    is_running_as_exe,
+    migrate_legacy_paths,
+    pstr,
+    setup_runtime_cwd,
+)
+
+init_frozen_flag()
+setup_runtime_cwd()
+migrate_legacy_paths()
+ensure_runtime_dirs()
+
 # ============================================================================
 # LOG SUPPRESS SETUP
 # ============================================================================
@@ -29,25 +55,25 @@ except Exception:
 # ============================================================================
 # OTA UPDATE SETUP
 # ============================================================================
-from version import CURRENT_VERSION, GITHUB_REPO, GITHUB_USER, UPDATE_ZIP_NAME
+from version import (
+    CURRENT_VERSION,
+    GITHUB_REPO,
+    GITHUB_USER,
+    LICENSE_PRODUCT_ID,
+    UPDATE_ZIP_NAME,
+)
+from utils import license_service as lic_svc
 
-# OTA: dinorap-updater (nút Cập nhật → tải ZIP + update.json → xcopy ghi đè, giữ file cũ)
-try:
-    from dinorap_updater import OTAUpdater
+# OTA: GitHub release (VideoCreator.zip + update.json) — không phụ thuộc fastapi
+from utils.ota_install import cleanup_old_update_artifacts, download_and_install, is_updating
 
-    updater = OTAUpdater(
-        github_user=GITHUB_USER,
-        github_repo=GITHUB_REPO,
-        current_version=CURRENT_VERSION,
-    )
-    UPDATER_AVAILABLE = True
-except ImportError:
-    UPDATER_AVAILABLE = False
-    updater = None
+cleanup_old_update_artifacts()
+UPDATER_AVAILABLE = True
+updater = None
 
 
 def _github_check_for_update() -> Dict[str, Any]:
-    """Cần đủ VideoCreator.zip + update.json trên GitHub release."""
+    """Cần đủ VideoCreator.zip + update.json trên GitHub release (tag = CURRENT_VERSION trong version.py)."""
     import requests
     from packaging import version as pkg_version
 
@@ -59,27 +85,47 @@ def _github_check_for_update() -> Dict[str, Any]:
         data = resp.json()
         latest_tag = str(data.get("tag_name") or "").strip()
         if not latest_tag:
-            return {"has_update": False}
+            return {"has_update": False, "error": "no_tag_name"}
 
         try:
             if pkg_version.parse(latest_tag) <= pkg_version.parse(CURRENT_VERSION):
-                return {"has_update": False}
+                return {
+                    "has_update": False,
+                    "current_version": CURRENT_VERSION,
+                    "latest_version": latest_tag,
+                }
         except Exception:
             pass
 
         zip_url = None
         json_url = None
+        found_assets: list[str] = []
         for asset in data.get("assets") or []:
             name = str((asset or {}).get("name") or "")
+            if name:
+                found_assets.append(name)
             if name == UPDATE_ZIP_NAME:
                 zip_url = (asset or {}).get("browser_download_url")
             elif name == "update.json":
                 json_url = (asset or {}).get("browser_download_url")
 
+        if zip_url and not json_url:
+            fallback = (
+                f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/download/"
+                f"{latest_tag}/update.json"
+            )
+            try:
+                head = requests.head(fallback, timeout=10, allow_redirects=True)
+                if head.status_code == 200:
+                    json_url = fallback
+            except Exception:
+                pass
+
         if zip_url and json_url:
             return {
                 "has_update": True,
                 "version": latest_tag,
+                "current_version": CURRENT_VERSION,
                 "download_url": zip_url,
                 "meta_url": json_url,
                 "body": data.get("body", "") or "",
@@ -89,19 +135,17 @@ def _github_check_for_update() -> Dict[str, Any]:
             "has_update": False,
             "error": "missing_release_assets",
             "expected": [UPDATE_ZIP_NAME, "update.json"],
+            "found_assets": found_assets,
+            "current_version": CURRENT_VERSION,
+            "latest_version": latest_tag,
+            "hint": "Chay: python pack_release_update.py roi upload VideoCreator.zip + update.json len GitHub Release (tag phai trung version.py).",
         }
     except Exception as exc:
         return {"has_update": False, "error": str(exc)}
 
-# dinorap_updater chỉ cho phép update khi sys.frozen=True
-# Với một số bản Nuitka, cờ này có thể không được set dù đang chạy file .exe
 try:
-    from utils.veo3.path_helper import is_running_as_exe
-    if is_running_as_exe() and not getattr(sys, "frozen", False):
-        try:
-            setattr(sys, "frozen", True)
-        except Exception:
-            pass
+    from utils.runtime_paths import init_runtime_environment
+    init_runtime_environment()
 except Exception:
     pass
 # ============================================================================
@@ -140,14 +184,15 @@ from utils.control_script import (
     upload_temp_video_handler,
 )
 
-EXE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-BUNDLE_DIR = getattr(sys, '_MEIPASS', EXE_DIR)
+EXE_DIR = pstr(BASE_DIR)
+MUSIC_DIR = pstr(MUSIC_DIR)
+THEME_IMG_DIR = pstr(THEME_IMG_DIR)
+GENERATED_DIR = pstr(GENERATED_DIR)
+CONFIG_FILE_PATH = pstr(CONFIG_FILE)
+TASKS_FILE_PATH = pstr(TASKS_FILE)
+TEMP_VIDEO_DIR_PATH = pstr(TEMP_VIDEO_DIR)
 
-MUSIC_DIR = os.path.join(EXE_DIR, "config", "Music")
-THEME_IMG_DIR = os.path.join(BUNDLE_DIR, "templaces", "img")
-GENERATED_DIR = os.path.join(EXE_DIR, "generated")
-
-app = Flask(__name__, static_folder=".", static_url_path="/static")
+app = Flask(__name__, static_folder=EXE_DIR, static_url_path="/static")
 
 # ============================================================================
 # OTA UPDATE FLASK ROUTES
@@ -157,60 +202,85 @@ app = Flask(__name__, static_folder=".", static_url_path="/static")
 
 @app.route('/api/version', methods=['GET'])
 def get_version():
-    """Trả về version hiện tại"""
-    return jsonify({"version": CURRENT_VERSION})
-
-if UPDATER_AVAILABLE and updater:
-    @app.route('/api/update/check', methods=['GET'])
-    def check_for_update():
-        """Kiểm tra update mới (VideoCreator.zip + update.json)"""
-        try:
-            return jsonify(_github_check_for_update())
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route('/api/update/perform', methods=['POST'])
-    def perform_update():
-        """Tải ZIP, verify SHA256 từ update.json, xcopy ghi đè file có trong bản mới, restart."""
-        try:
-            if not getattr(sys, "frozen", False):
-                return jsonify({
-                    "success": False,
-                    "error": "Cập nhật OTA chỉ chạy trên bản EXE đã build",
-                }), 400
-
-            info = _github_check_for_update()
-            if not info.get("has_update"):
-                err = info.get("error") or "Không có bản cập nhật"
-                return jsonify({"success": False, "error": err}), 400
-
-            if getattr(updater, "_is_updating", False):
-                return jsonify({"success": False, "error": "Đang cập nhật, vui lòng chờ..."}), 409
-
-            def _run_install():
-                try:
-                    updater._download_and_install(info)  # type: ignore[attr-defined]
-                except Exception as exc:
-                    print(f"[Updater] Install failed: {exc}")
-
-            threading.Thread(target=_run_install, daemon=True).start()
-            return jsonify({
-                "success": True,
-                "message": "Đang tải và cài đặt. Ứng dụng sẽ tự khởi động lại...",
-                "version": info.get("version"),
-            })
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/debug/runtime', methods=['GET'])
-def debug_runtime():
-    """Debug endpoint để kiểm tra runtime info"""
+    """Phiên bản từ version.py (build vào exe), không đọc config.json."""
     return jsonify({
-        "sys.frozen": getattr(sys, 'frozen', False),
-        "sys.executable": sys.executable,
-        "updater_available": UPDATER_AVAILABLE,
-        "current_version": CURRENT_VERSION,
+        "version": CURRENT_VERSION,
+        "source": "version.py",
     })
+
+@app.route('/api/update/check', methods=['GET'])
+def check_for_update():
+    """Kiểm tra update mới (VideoCreator.zip + update.json)"""
+    try:
+        return jsonify(_github_check_for_update())
+    except Exception as e:
+        return jsonify({"has_update": False, "error": str(e)}), 500
+
+
+@app.route('/api/update/perform', methods=['POST'])
+def perform_update():
+    """Tải ZIP, verify SHA256 từ update.json, xcopy ghi đè file có trong bản mới, restart."""
+    try:
+        if not is_running_as_exe():
+            return jsonify({
+                "success": False,
+                "error": "Cập nhật OTA chỉ chạy trên bản EXE đã build",
+            }), 400
+
+        info = _github_check_for_update()
+        if not info.get("has_update"):
+            err = info.get("error") or "Không có bản cập nhật"
+            return jsonify({"success": False, "error": err}), 400
+
+        if is_updating():
+            return jsonify({"success": False, "error": "Đang cập nhật, vui lòng chờ..."}), 409
+
+        def _run_install():
+            try:
+                download_and_install(info)
+            except Exception as exc:
+                print(f"[Updater] Install failed: {exc}")
+
+        threading.Thread(target=_run_install, daemon=True).start()
+        return jsonify({
+            "success": True,
+            "message": "Đang tải và cài đặt. Ứng dụng sẽ tự khởi động lại...",
+            "version": info.get("version"),
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================================
+# LICENSE ROUTES
+# ============================================================================
+
+@app.before_request
+def _license_gate():
+    return lic_svc.license_middleware()
+
+
+@app.route('/api/license/status', methods=['GET'])
+def license_status():
+    return jsonify(lic_svc.get_license_status())
+
+
+@app.route('/api/license/config', methods=['GET'])
+def license_config():
+    return jsonify({
+        'product_id': LICENSE_PRODUCT_ID,
+        'server_url': lic_svc.get_license_server_url(),
+    })
+
+
+@app.route('/api/license/activate', methods=['POST'])
+def license_activate():
+    data = request.get_json(silent=True) or {}
+    key = (data.get('license_key') or data.get('key') or '').strip()
+    ok, msg, status = lic_svc.activate_license_key(key)
+    body = {'ok': ok, 'message': msg, **(status or {})}
+    return jsonify(body), (200 if ok else 400)
+
 
 # Exception handler cho PermissionError
 @app.errorhandler(PermissionError)
@@ -222,14 +292,6 @@ def handle_permission_error(e):
     }), 403
 
 # ============================================================================
-
-
-_ACCOUNT_CHECK_CACHE_LOCK = threading.Lock()
-_ACCOUNT_CHECK_CACHE: Dict[str, Any] = {
-    'ts': 0.0,
-    'user_id': '',
-    'result': None,
-}
 
 
 def _run_coro_blocking(coro):
@@ -251,228 +313,6 @@ def _run_coro_blocking(coro):
                 pass
     except Exception:
         raise
-
-
-def _read_account_id_from_config() -> str:
-    try:
-        cfg_path = os.path.join(EXE_DIR, 'config', 'config.json')
-        if not os.path.exists(cfg_path):
-            return ''
-        with open(cfg_path, 'r', encoding='utf-8') as f:
-            cfg = json.load(f) or {}
-        if isinstance(cfg, dict):
-            return str(cfg.get('ACCOUNT_ID') or cfg.get('account_id') or '').strip()
-    except Exception:
-        pass
-    return ''
-
-
-def _count_reserved_video_credits() -> int:
-    """Số task video đang chạy (đã trừ lượt, chưa xong)."""
-    reserved = 0
-    try:
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
-        if not os.path.exists(tasks_file):
-            return 0
-        with open(tasks_file, 'r', encoding='utf-8') as f:
-            raw = f.read()
-        try:
-            tasks_data = json.loads(raw) if raw else []
-        except Exception:
-            tasks_data = []
-        for it in (tasks_data if isinstance(tasks_data, list) else []):
-            try:
-                st = str((it or {}).get('status') or '').lower()
-                if st not in ('processing', 'pending'):
-                    continue
-                name = str((it or {}).get('name') or '')
-                if name.startswith('Tạo video:'):
-                    reserved += 1
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return reserved
-
-
-def _evaluate_credit_for_batch(*, requested_tasks: int) -> Dict[str, Any]:
-    """Kiểm tra lượt trước khi tạo video/ảnh hàng loạt.
-
-    Returns dict: ok, status, body (error payload), meta, allowed_tasks
-    """
-    from utils.callserver import check_async, is_bypass_key
-
-    meta: Dict[str, Any] = {
-        'user_id': '',
-        'count': 0,
-        'limit': 0,
-        'reserved': 0,
-        'remaining': 0,
-        'bypass': False,
-    }
-    req = max(0, int(requested_tasks or 0))
-
-    user_id = _read_account_id_from_config()
-    if not user_id:
-        return {
-            'ok': False,
-            'status': 400,
-            'body': {
-                'ok': False,
-                'error': 'Vui lòng nhập User ID',
-                'redirect_to_payment': False,
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    meta['user_id'] = user_id
-
-    if is_bypass_key(user_id):
-        meta['bypass'] = True
-        meta['remaining'] = req
-        return {
-            'ok': True,
-            'status': 200,
-            'body': None,
-            'meta': meta,
-            'allowed_tasks': req,
-        }
-
-    try:
-        credit_check = _run_coro_blocking(check_async(user_id))
-    except Exception as exc:
-        return {
-            'ok': False,
-            'status': 400,
-            'body': {
-                'ok': False,
-                'error': f'Không thể kiểm tra lượt: {exc}',
-                'redirect_to_payment': False,
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    if credit_check is None:
-        return {
-            'ok': False,
-            'status': 400,
-            'body': {
-                'ok': False,
-                'error': 'Không thể kiểm tra lượt',
-                'redirect_to_payment': False,
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    data0 = getattr(credit_check, 'data', None)
-    if not isinstance(data0, dict):
-        data0 = {}
-
-    try:
-        meta['count'] = int(data0.get('count') or 0)
-    except Exception:
-        meta['count'] = 0
-    try:
-        meta['limit'] = int(data0.get('limit') or 0)
-    except Exception:
-        meta['limit'] = 0
-
-    meta['reserved'] = _count_reserved_video_credits()
-    meta['remaining'] = max(0, int(meta['limit'] - meta['count'] - meta['reserved']))
-
-    if not bool(getattr(credit_check, 'success', False)):
-        return {
-            'ok': False,
-            'status': 400,
-            'body': {
-                'ok': False,
-                'error': str(getattr(credit_check, 'message', '') or '') or 'Không thể kiểm tra lượt',
-                'redirect_to_payment': bool(getattr(credit_check, 'redirect_to_payment', False)),
-                'count': meta['count'],
-                'limit': meta['limit'],
-                'reserved': meta['reserved'],
-                'remaining': meta['remaining'],
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    # limit=0 hoặc hết remaining → chặn (trước đây bỏ qua vì chỉ check khi limit > 0)
-    if meta['limit'] <= 0 or meta['remaining'] <= 0:
-        return {
-            'ok': False,
-            'status': 402,
-            'body': {
-                'ok': False,
-                'error': 'Đã hết lượt',
-                'redirect_to_payment': True,
-                'count': meta['count'],
-                'limit': meta['limit'],
-                'reserved': meta['reserved'],
-                'remaining': meta['remaining'],
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    allowed = min(req, meta['remaining']) if req > 0 else 0
-    if req > 0 and allowed <= 0:
-        return {
-            'ok': False,
-            'status': 402,
-            'body': {
-                'ok': False,
-                'error': 'Đã hết lượt',
-                'redirect_to_payment': True,
-                'count': meta['count'],
-                'limit': meta['limit'],
-                'reserved': meta['reserved'],
-                'remaining': meta['remaining'],
-            },
-            'meta': meta,
-            'allowed_tasks': 0,
-        }
-
-    return {
-        'ok': True,
-        'status': 200,
-        'body': None,
-        'meta': meta,
-        'allowed_tasks': allowed if req > 0 else meta['remaining'],
-    }
-
-
-def _cache_check_result(user_id: str, res_obj) -> None:
-    try:
-        with _ACCOUNT_CHECK_CACHE_LOCK:
-            _ACCOUNT_CHECK_CACHE['ts'] = time.time()
-            _ACCOUNT_CHECK_CACHE['user_id'] = str(user_id or '')
-            _ACCOUNT_CHECK_CACHE['result'] = res_obj
-    except Exception:
-        pass
-
-
-def _startup_check_account_async() -> None:
-    try:
-        from utils.callserver import check_async
-
-        user_id = _read_account_id_from_config()
-        if not user_id:
-            return
-
-        res = _run_coro_blocking(check_async(user_id))
-        _cache_check_result(user_id, res)
-    except Exception:
-        pass
-
-
-try:
-    threading.Thread(target=_startup_check_account_async, daemon=True).start()
-except Exception:
-    pass
 
 
 _CREATE_IMAGES_CANCEL = threading.Event()
@@ -538,7 +378,7 @@ def _force_exit_later(delay_sec: float = 0.4) -> None:
 
 def _mark_tasks_cancelled_best_effort(task_ids=None):
     try:
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return
 
@@ -622,17 +462,17 @@ def _write_data_url_to_file(data_url: str, out_path: str) -> None:
 @app.route("/")
 def index():
     # Phục vụ giao diện chính
-    return send_from_directory(os.path.join(BUNDLE_DIR, 'templaces', 'html'), "index.html")
+    return send_from_directory(os.path.join(pstr(TEMPLACES_DIR), 'html'), "index.html")
 
 
 @app.route('/templaces/<path:filename>')
 def serve_templates(filename: str):
-    return send_from_directory(os.path.join(BUNDLE_DIR, 'templaces'), filename)
+    return send_from_directory(pstr(TEMPLACES_DIR), filename)
 
 
 @app.route('/config/<path:filename>')
 def serve_config(filename: str):
-    return send_from_directory(os.path.join(EXE_DIR, 'config'), filename)
+    return send_from_directory(pstr(CONFIG_DIR), filename)
 
 
 @app.route('/generated/<path:filename>')
@@ -643,7 +483,7 @@ def serve_generated(filename: str):
 @app.route('/ico/<path:filename>')
 def serve_ico(filename: str):
     try:
-        p1 = os.path.join(EXE_DIR, 'ico')
+        p1 = pstr(ICO_DIR)
         if os.path.exists(os.path.join(p1, filename)):
             resp = make_response(send_from_directory(p1, filename))
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -651,7 +491,7 @@ def serve_ico(filename: str):
             resp.headers['Expires'] = '0'
             return resp
 
-        p2 = os.path.join(BUNDLE_DIR, 'ico')
+        p2 = os.path.join(pstr(BUNDLE_DIR), 'ico')
         if os.path.exists(os.path.join(p2, filename)):
             resp = make_response(send_from_directory(p2, filename))
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -671,23 +511,12 @@ def favicon():
 @app.route('/api/debug/runtime')
 def get_runtime_debug():
     """Debug endpoint để xác minh app đang chạy từ đâu (hữu ích khi OTA update)"""
-    try:
-        exe = sys.executable
-    except Exception:
-        exe = ""
-    try:
-        from pathlib import Path
-        cwd = str(Path.cwd())
-    except Exception:
-        cwd = ""
-    
-    return jsonify({
+    info = get_paths_diagnostic()
+    info.update({
         "version": CURRENT_VERSION,
-        "sys_executable": exe,
-        "cwd": cwd,
-        "frozen": getattr(sys, "frozen", False),
         "updater_available": UPDATER_AVAILABLE,
     })
+    return jsonify(info)
 
 
 @app.route('/debug_browser', methods=['GET'])
@@ -765,8 +594,8 @@ def verify_log_password():
         payload = request.get_json(silent=True) or {}
         password = str(payload.get('password') or '').strip()
         
-        # Hash mật khẩu đúng: 20032003
-        correct_hash = hashlib.sha256('20032003'.encode()).hexdigest()
+        # Pre-computed SHA256 hash (không lưu password gốc)
+        correct_hash = 'c5fe25896e49ddfe996db7508cf00534edfc836ff1e8e7ddce9f908c2d44b83c'
         input_hash = hashlib.sha256(password.encode()).hexdigest()
         
         if input_hash == correct_hash:
@@ -783,7 +612,7 @@ def get_log_status():
     try:
         from utils.log_suppress import is_suppress_all_logs
         
-        config_path = os.path.join(EXE_DIR, 'config', 'config.json')
+        config_path = CONFIG_FILE_PATH
         suppress_enabled = False
         
         if os.path.exists(config_path):
@@ -813,7 +642,7 @@ def toggle_log_suppression():
         set_suppress_all_logs(enabled)
         
         # Update config file
-        config_path = os.path.join(EXE_DIR, 'config', 'config.json')
+        config_path = CONFIG_FILE_PATH
         
         if os.path.exists(config_path):
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -835,65 +664,6 @@ def toggle_log_suppression():
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
-@app.route('/api/check', methods=['POST'])
-def api_check_account():
-    try:
-        payload = request.get_json(silent=True) or {}
-        user_id = str(payload.get('user_id') or payload.get('id') or '').strip()
-        if not user_id:
-            return jsonify({'ok': False, 'error': 'Missing user_id'}), 400
-
-        # Serve cached startup result if it matches (best-effort)
-        res_obj = None
-        try:
-            with _ACCOUNT_CHECK_CACHE_LOCK:
-                cached_uid = str(_ACCOUNT_CHECK_CACHE.get('user_id') or '')
-                cached_res = _ACCOUNT_CHECK_CACHE.get('result')
-                cached_ts = float(_ACCOUNT_CHECK_CACHE.get('ts') or 0.0)
-            if cached_uid and cached_uid == user_id and cached_res is not None:
-                # cache TTL + avoid reusing cached errors
-                is_fresh = (time.time() - cached_ts) < 60.0
-                if is_fresh:
-                    try:
-                        ok_flag = bool(getattr(cached_res, 'success', False))
-                        data0 = getattr(cached_res, 'data', None)
-                        err_code = str((data0 or {}).get('error_code') or '') if isinstance(data0, dict) else ''
-                        if ok_flag:
-                            res_obj = cached_res
-                        else:
-                            # do not reuse error cache for these codes
-                            if err_code and err_code.upper() not in ('BROTLI', 'ERROR'):
-                                res_obj = cached_res
-                    except Exception:
-                        res_obj = None
-        except Exception:
-            res_obj = None
-
-        if res_obj is None:
-            from utils.callserver import check_async
-            res_obj = _run_coro_blocking(check_async(user_id))
-            _cache_check_result(user_id, res_obj)
-
-        data = getattr(res_obj, 'data', None) if res_obj is not None else None
-        if not isinstance(data, dict):
-            data = {}
-
-        count = data.get('count', 0)
-        limit = data.get('limit', 0)
-
-        return jsonify({
-            'ok': True,
-            'success': bool(getattr(res_obj, 'success', False)),
-            'message': str(getattr(res_obj, 'message', '') or ''),
-            'redirect_to_payment': bool(getattr(res_obj, 'redirect_to_payment', False)),
-            'data': data,
-            'count': count,
-            'limit': limit,
-        })
-    except Exception as exc:
-        return jsonify({'ok': False, 'error': str(exc)}), 500
-
-
 @app.route('/task_video', methods=['GET'])
 def task_video():
     try:
@@ -901,7 +671,7 @@ def task_video():
         if not task_id:
             return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
 
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return jsonify({'ok': False, 'error': 'tasks.json not found'}), 404
 
@@ -933,9 +703,6 @@ def task_video():
             'total_scenes': task.get('total_scenes'),
             'phase': task.get('phase'),
             'result_url': task.get('result_url'),
-            'credit_request_id': task.get('credit_request_id'),
-            'credit_verified': task.get('credit_verified'),
-            'credit_verify_message': task.get('credit_verify_message'),
         }
 
         return jsonify(out)
@@ -950,7 +717,7 @@ def task_image():
         if not task_id:
             return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
 
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return jsonify({'ok': False, 'error': 'tasks.json not found'}), 404
 
@@ -1005,7 +772,7 @@ def remerge_video():
         if not task_id:
             return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
 
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return jsonify({'ok': False, 'error': 'tasks.json not found'}), 404
 
@@ -1148,7 +915,7 @@ def save_video_results():
         if not task_ids:
             return jsonify({'ok': False, 'error': 'Missing task_ids'}), 400
 
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return jsonify({'ok': False, 'error': 'tasks.json not found'}), 404
 
@@ -1277,7 +1044,7 @@ def discard_video_results():
         if not task_ids:
             return jsonify({'ok': True, 'deleted': 0})
 
-        tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+        tasks_file = TASKS_FILE_PATH
         if not os.path.exists(tasks_file):
             return jsonify({'ok': True, 'deleted': 0})
 
@@ -1358,7 +1125,7 @@ def exit_app():
         # Perform requested action best-effort
         if action == 'save' and task_ids:
             # Inline minimal copy of save_video_results behavior
-            tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+            tasks_file = TASKS_FILE_PATH
             if os.path.exists(tasks_file):
                 try:
                     import json
@@ -1457,7 +1224,7 @@ def exit_app():
         elif action == 'discard' and task_ids:
             # Reuse discard logic by calling it inline
             try:
-                tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+                tasks_file = TASKS_FILE_PATH
                 if os.path.exists(tasks_file):
                     try:
                         import json
@@ -1548,12 +1315,12 @@ def _perform_app_cleanup():
 @app.route('/uninstall', methods=['POST'])
 def uninstall():
     try:
-        if not getattr(sys, 'frozen', False):
+        if not is_running_as_exe():
             return jsonify({'ok': False, 'error': 'Chỉ hỗ trợ khi chạy bản build (EXE)'}), 400
         if os.name != 'nt':
             return jsonify({'ok': False, 'error': 'Only supported on Windows'}), 400
 
-        base_dir = os.path.dirname(sys.executable)
+        base_dir = EXE_DIR
         pid = os.getpid()
 
         bat_path = os.path.join(tempfile.gettempdir(), f"video_creator_self_uninstall_{uuid.uuid4().hex[:8]}.bat")
@@ -1688,20 +1455,6 @@ def create_videos_batch_start():
         if not (os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label)):
             return jsonify({'ok': False, 'error': 'Vui lòng chọn thư mục lưu kết quả'}), 400
 
-        credit_gate = _evaluate_credit_for_batch(requested_tasks=len(tasks))
-        if not credit_gate.get('ok'):
-            body = credit_gate.get('body') or {}
-            return jsonify(body), int(credit_gate.get('status') or 400)
-
-        cmeta = credit_gate.get('meta') or {}
-        credit_count = int(cmeta.get('count') or 0)
-        credit_limit = int(cmeta.get('limit') or 0)
-        credit_reserved = int(cmeta.get('reserved') or 0)
-        credit_remaining = int(cmeta.get('remaining') or 0)
-        allowed_tasks = int(credit_gate.get('allowed_tasks') or 0)
-        if allowed_tasks < len(tasks):
-            tasks = list(tasks)[:allowed_tasks]
-
         from utils.control_profile import init_global_browser, get_global_browser
         from utils.control_script import create_video_task
         from utils.control_creat_video import run_video_tasks
@@ -1779,10 +1532,6 @@ def create_videos_batch_start():
             'ok': True,
             'batch_id': batch_key,
             'tasks': mapping,
-            'count': credit_count,
-            'limit': credit_limit,
-            'reserved': credit_reserved,
-            'remaining': max(0, credit_remaining - len(mapping)),
         })
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
@@ -1812,7 +1561,7 @@ def cancel_create_videos_batch():
         # Fallback: infer batch folder from tasks.json scenes_dir (works even if server lost _ASYNC_VIDEO_BATCHES)
         try:
             if task_ids:
-                tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+                tasks_file = TASKS_FILE_PATH
                 if os.path.exists(tasks_file):
                     import json
                     with open(tasks_file, 'r', encoding='utf-8') as f:
@@ -1850,7 +1599,7 @@ def cancel_create_videos_batch():
 
         # Cleanup temp scenes folders for cancelled tasks
         try:
-            tasks_file = os.path.join(EXE_DIR, 'config', 'tasks.json')
+            tasks_file = TASKS_FILE_PATH
             if os.path.exists(tasks_file) and task_ids:
                 import json
                 with open(tasks_file, 'r', encoding='utf-8') as f:
@@ -2022,7 +1771,7 @@ def upload_temp_video():
 @app.route("/temp_video/<filename>")
 def serve_temp_video(filename):
     """Serve video files from temp_video directory"""
-    temp_video_dir = os.path.join(EXE_DIR, "temp_video")
+    temp_video_dir = TEMP_VIDEO_DIR_PATH
     return send_from_directory(temp_video_dir, filename)
 
 
@@ -2073,17 +1822,7 @@ def clear_tasks():
 
 @app.route("/save_config", methods=["POST"])
 def save_config():
-    resp = save_config_handler()
-    try:
-        data = request.get_json(silent=True) or {}
-        if 'ACCOUNT_ID' in data or 'account_id' in data:
-            with _ACCOUNT_CHECK_CACHE_LOCK:
-                _ACCOUNT_CHECK_CACHE['ts'] = 0.0
-                _ACCOUNT_CHECK_CACHE['user_id'] = ''
-                _ACCOUNT_CHECK_CACHE['result'] = None
-    except Exception:
-        pass
-    return resp
+    return save_config_handler()
 
 
 @app.route("/cleanup_temp", methods=["POST"])
@@ -2154,30 +1893,21 @@ def setup_profile():
         data = request.get_json()
         if not data or 'model' not in data:
             return jsonify({'success': False, 'error': 'Missing model parameter'})
-        
+
         model = data['model']
-        
-        # Import and run control_profile.py
-        import sys
-        import os
-        sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
-        
-       
-        from control_profile import setting_grok_profile, setting_veo3_profile
-        
-        # Map model names to functions
-        model_functions = {
-            'Grok (X-AI)': setting_grok_profile,
-            'Veo3 (Google)': setting_veo3_profile,
-            'Kling AI': lambda: print("Kling AI profile setup not implemented yet")
+        from utils.control_profile import open_profile
+
+        supported = {
+            'Grok (X-AI)': 'Grok (X-AI)',
+            'Veo3 (Google)': 'Veo3 (Google)',
         }
-        
-        if model in model_functions:
-            result = model_functions[model]()
+        if model in supported:
+            open_profile(supported[model])
             return jsonify({'success': True, 'message': f'Profile setup completed for {model}'})
-        else:
-            return jsonify({'success': False, 'error': f'Unknown model: {model}'})
-            
+        if model == 'Kling AI':
+            return jsonify({'success': False, 'error': 'Kling AI profile setup not implemented yet'})
+        return jsonify({'success': False, 'error': f'Unknown model: {model}'})
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -2649,21 +2379,6 @@ def create_videos_veo3_handler():
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
 
-        # Ước lượng số video = tổng số cảnh hợp lệ (mỗi cảnh 1 file)
-        estimated_videos = 0
-        for t in tasks:
-            scenes = (t or {}).get('scenes', [])
-            if not isinstance(scenes, list):
-                continue
-            for scene in scenes:
-                if str((scene or {}).get('image') or '').strip() and str((scene or {}).get('prompt') or '').strip():
-                    estimated_videos += 1
-        credit_gate = _evaluate_credit_for_batch(requested_tasks=max(1, estimated_videos))
-        if not credit_gate.get('ok'):
-            body = credit_gate.get('body') or {}
-            return jsonify(body), int(credit_gate.get('status') or 400)
-        veo3_credit_slots = int(credit_gate.get('allowed_tasks') or 0)
-        
         # 🔥 CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo video Veo3
         # Veo3 cần kết nối qua CDP để điều khiển browser
         from utils.control_profile import init_global_browser
@@ -2688,11 +2403,8 @@ def create_videos_veo3_handler():
 
         runner_tasks = []
         mapping = []
-        veo3_slots_left = veo3_credit_slots
 
         for t in tasks:
-            if veo3_slots_left <= 0:
-                break
             form_id = str((t or {}).get('form_id') or '').strip()
             scenes = t.get('scenes', [])
 
@@ -2701,15 +2413,11 @@ def create_videos_veo3_handler():
 
             # Veo3 video: mỗi scene = 1 video riêng
             for idx, scene in enumerate(scenes):
-                if veo3_slots_left <= 0:
-                    break
                 image_data = str((scene or {}).get('image') or '')
                 prompt = str((scene or {}).get('prompt') or '')
 
                 if not image_data or not prompt:
                     continue
-
-                veo3_slots_left -= 1
 
                 out_name = f'{form_id}_scene{idx}_{uuid.uuid4().hex[:4]}.mp4'
                 out_abs = os.path.join(out_folder_abs, out_name)
@@ -2846,7 +2554,9 @@ if __name__ == "__main__":
         raise
     except Exception:
         pass
+    lic_svc.ensure_license(use_gui=True)
+
     threading.Timer(1.0, open_browser).start()
     _start_client_watchdog(timeout_sec=120.0, check_interval=5.0)
 
-    app.run(host="127.0.0.1", port=5000, debug=(not getattr(sys, 'frozen', False)), use_reloader=False, threaded=True)
+    app.run(host="127.0.0.1", port=5000, debug=(not is_running_as_exe()), use_reloader=False, threaded=True)

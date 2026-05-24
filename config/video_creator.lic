@@ -1,0 +1,4 @@
+{
+    "payload": "{\"hwid\": \"fdf580eb248c9cfd60bc7ab0779f68fc1e25d4947f180ab91ee470417aa81fb7\", \"last_check\": 1779636515.0533164, \"license_key\": \"O6FQ-7QUX-DQBI-4QPK\", \"server_data\": {\"expire_at\": null, \"message\": \"License \\u0111\\u00e3 \\u0111\\u01b0\\u1ee3c k\\u00edch ho\\u1ea1t th\\u00e0nh c\\u00f4ng\", \"ok\": true, \"ui_mode\": 1, \"yt_plan\": \"standard\"}}",
+    "signature": "732d57014b1f66b04258c31b1d339695c343c7ace1dd6636c4b47721bf5475be"
+}

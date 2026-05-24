@@ -13,3 +13,6 @@ zstandard
 # --- OTA Update (dinorap-updater) ---
 packaging
 dinorap-updater @ git+https://github.com/dinorap/dinorap-updater.git
+
+# --- License (GUI kích hoạt khi chạy EXE) ---
+customtkinter

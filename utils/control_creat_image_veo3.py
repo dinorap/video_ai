@@ -44,8 +44,10 @@ from utils.veo3_profile import (
 )
 from utils.control_script import create_image_task, update_task_status
 
-import sys
-BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from utils.path_helper import BASE_DIR as _BASE, CONFIG_FILE, pstr
+
+BASE_DIR = pstr(_BASE)
+CONFIG_FILE_PATH = pstr(CONFIG_FILE)
 
 
 async def create_image_veo3(
@@ -83,7 +85,7 @@ async def create_image_veo3(
         print(f"[Veo3 Image] 🎨 Bắt đầu tạo ảnh với API trực tiếp")
         
         # 2. Lấy CDP port từ config
-        config_path = os.path.join(BASE_DIR, 'config', 'config.json')
+        config_path = CONFIG_FILE_PATH
         cdp_port = 9222
         try:
             if os.path.exists(config_path):

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Import từ utils.veo3.path_helper (trong project này)
+from utils.path_helper import is_running_as_exe
 from utils.veo3.path_helper import CONFIG_DIR, PROJECTS_DIR
 
 # Các module encrypt/secure không cần thiết cho Veo3, tạo stub functions
@@ -232,7 +233,7 @@ def save_settings_data(data: Dict[str, Any]) -> None:
     Dev mode: ghi cả settings.json + settings.json.enc để dễ debug.
     Exe mode (frozen): chỉ ghi settings.json.enc để tránh lộ plain text.
     """
-    is_frozen = bool(getattr(sys, "frozen", False))
+    is_frozen = is_running_as_exe()
     write_settings(CONFIG_DIR, data, write_plaintext=not is_frozen)
 
 

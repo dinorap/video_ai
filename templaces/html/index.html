@@ -45,37 +45,26 @@
             <div class="app-version" id="app-version">Loading...</div>
         </div>
 
-        <div class="info-card">
-            <span class="label"><img class="section-icon" src="/ico/musical.png" alt=""> AI Credit Balance</span>
-            <div class="value credit-value">1,250.00</div>
-        </div>
-
-        <div class="info-card">
-            <span class="label"><img class="section-icon" src="/ico/user.png" alt=""> User ID</span>
-
-            <div class="value id-value">
-
-                <span id="userId" contenteditable="false" onclick="enableEdit()" style="cursor:text;">
-                    Loading...
-                </span>
-
-                <!-- COPY -->
-                <i class="fas fa-copy copy-btn" id="btn-copy" onclick="copyId(event)" title="Copy ID"
-                    style="cursor:pointer;"></i>
-
-                <!-- SAVE -->
-                <i class="fas fa-save save-btn" id="btn-save" onclick="saveUserId(event)" title="Lưu ID"
-                    style="display:none;cursor:pointer;color:#4CAF50;margin-left:5px;"></i>
-
-                <!-- HELP -->
-                <i class="fas fa-question-circle copy-btn" onclick="showAccountGuideModal()" title="Hướng dẫn về User ID"
-                    style="cursor:pointer;margin-left:5px;color: var(--warning);"></i>
-
+        <div class="info-card license-info-card">
+            <span class="label"><img class="section-icon" src="/ico/settings.png" alt=""> License key</span>
+            <div class="license-key-row">
+                <input type="text" class="input-control" id="license-key-input" placeholder="Nhập license key"
+                    autocomplete="off" spellcheck="false" />
+                <i class="fas fa-copy copy-btn" id="btn-copy-license" onclick="copyLicenseKey(event)"
+                    title="Sao chép key" style="cursor:pointer;"></i>
             </div>
+            <div class="license-meta">
+                <div id="license-status-text">Đang tải...</div>
+                <div id="license-expire-text"></div>
+            </div>
+            <button type="button" class="btn btn-settings license-activate-btn" id="btn-license-activate">
+                <i class="fas fa-key"></i> KÍCH HOẠT
+            </button>
         </div>
 
         <!-- Nút hướng dẫn nhanh -->
-        <button class="btn btn-settings" onclick="showQuickGuideModal()" style="background: linear-gradient(135deg, rgba(0, 167, 255, 0.85), rgba(0, 100, 200, 0.85)) !important;">
+        <button class="btn btn-settings" onclick="showQuickGuideModal()"
+            style="background: linear-gradient(135deg, rgba(0, 167, 255, 0.85), rgba(0, 100, 200, 0.85)) !important;">
             <i class="fas fa-rocket"></i> HƯỚNG DẪN NHANH
         </button>
 
@@ -215,7 +204,9 @@
     <script src="/templaces/js/tao_anh.js"></script>
     <script src="/templaces/js/tao_video.js"></script>
     <!-- <script src="/templaces/js/kling.js"></script> -->
+    <script src="/templaces/js/version.js"></script>
     <script src="/templaces/js/updater.js"></script>
+    <script src="/templaces/js/license.js"></script>
     <script src="/templaces/js/core.js"></script>
 
     <script>

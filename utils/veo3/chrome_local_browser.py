@@ -16,13 +16,7 @@ from urllib.parse import urlparse
 
 import requests
 
-try:
-    from backend.utils.path_helper import BASE_DIR
-except Exception:
-    try:
-        from utils.path_helper import BASE_DIR  # type: ignore
-    except Exception:
-        BASE_DIR = Path.cwd()
+from utils.path_helper import BASE_DIR
 
 _REGISTRY_LOCK = threading.Lock()
 # profile_id -> { "popen": Popen | None, "port": int }
@@ -217,6 +211,15 @@ def port_for_profile(profile_id: str, ordered_ids: List[str]) -> int:
 
 
 def resolve_chrome_executable(settings: Dict[str, Any]) -> Optional[str]:
+    try:
+        from utils.runtime_paths import bundled_chrome_exe, resolve_chrome_executable as _resolve_rt
+
+        found = _resolve_rt(settings if isinstance(settings, dict) else {})
+        if found:
+            return found
+    except Exception:
+        pass
+
     explicit = str(settings.get("CHROME_EXECUTABLE") or "").strip()
     if explicit:
         p = Path(explicit)

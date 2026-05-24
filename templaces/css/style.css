@@ -192,10 +192,37 @@ body::before {
     font-weight    : 800;
 }
 
-.credit-value {
-    color      : var(--accent);
-    font-size  : 20px;
-    text-shadow: 0 0 18px var(--accent-shadow);
+.license-info-card .license-key-row {
+    display    : flex;
+    align-items: center;
+    gap        : 8px;
+    margin-top : 6px;
+}
+
+.license-info-card .license-key-row .input-control {
+    flex: 1;
+}
+
+.license-info-card .license-meta {
+    margin-top: 8px;
+    font-size : 12px;
+    line-height: 1.45;
+    color     : var(--text-soft);
+}
+
+.license-status-ok {
+    color: #4CAF50;
+    font-weight: 700;
+}
+
+.license-status-warn {
+    color: #f44336;
+    font-weight: 600;
+}
+
+.license-info-card .license-activate-btn {
+    width     : 100%;
+    margin-top: 10px;
 }
 
 .id-value {

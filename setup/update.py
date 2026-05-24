@@ -78,7 +78,7 @@ def ensure_runtime_config(app_dir: Path) -> None:
         return
 
     try:
-        cfg_path.write_text('{\n  "ACCOUNT_ID": ""\n}\n', encoding="utf-8")
+        cfg_path.write_text('{\n  "API": ""\n}\n', encoding="utf-8")
         print("Created missing config.json ->", cfg_path)
     except Exception as exc:
         print("Failed to create config.json:", exc)

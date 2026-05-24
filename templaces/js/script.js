@@ -1240,12 +1240,9 @@ async function loadConfig() {
         const data = await response.json();
 
 
-        // VERSION
-        const versionElements = document.querySelectorAll('.app-version');
-
-        versionElements.forEach(el => {
-            el.innerText = `v${data.VERSION}`;
-        });
+        if (typeof loadAppVersion === 'function') {
+            await loadAppVersion();
+        }
 
 
         // USER ID

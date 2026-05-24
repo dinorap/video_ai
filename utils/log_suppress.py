@@ -46,27 +46,17 @@ def install_print_hook() -> None:
 
 def load_suppress_from_settings() -> bool:
     try:
-        import os
         import json
-        import sys
-        
-        # Determine config path
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
-        else:
-            exe_dir = os.path.dirname(os.path.abspath(__file__))
-            exe_dir = os.path.dirname(exe_dir)  # Go up from utils to project root
-        
-        config_path = os.path.join(exe_dir, 'config', 'config.json')
-        
-        if not os.path.exists(config_path):
+        from utils.path_helper import CONFIG_FILE
+
+        if not CONFIG_FILE.is_file():
             enabled = False
         else:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             enabled = bool(data.get("SUPPRESS_ALL_LOGS", False))
     except Exception:
         enabled = False
-    
+
     set_suppress_all_logs(enabled)
     return enabled

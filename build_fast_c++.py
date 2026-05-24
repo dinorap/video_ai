@@ -62,6 +62,7 @@ INCLUDE_PACKAGES_CANDIDATES = [
     "dinorap_updater",
     "playwright",
     "playwright_stealth",
+    "customtkinter",
     "utils",
 ]
 
@@ -70,6 +71,34 @@ INCLUDE_MODULES = [
     "silent_download",
     "version",
     "app",
+    "utils.path_helper",
+    "utils.runtime_paths",
+    "utils.control_profile",
+    "utils.control_script",
+    "utils.control_ffmpeg",
+    "utils.control_music",
+    "utils.control_creat_video",
+    "utils.control_creat_video_veo3_batch",
+    "utils.control_creat_image",
+    "utils.control_creat_image_veo3",
+    "utils.veo3.veo_get_token",
+    "utils.veo3_profile",
+    "utils.ota_install",
+    "utils.license_service",
+    "utils.license_core",
+    "utils.license_core.api",
+    "utils.license_core.storage",
+    "utils.license_core.hwid",
+    "utils.license_core.env_secure",
+    "utils.license_core.gui",
+]
+
+BUILD_CONFIG_DIST = [
+    ("config/config.dist.json", "config/config.dist.json"),
+]
+
+LICENSE_DATA_FILES = [
+    ("utils/license_core/.env.enc", "utils/license_core/.env.enc"),
 ]
 
 DATA_DIRS = [
@@ -109,6 +138,49 @@ def _version_without_v() -> str:
     return v
 
 
+def _nuitka_env(base: dict | None = None) -> dict:
+    env = dict(base or os.environ)
+    env["NUITKA_ASSUME_YES_FOR_DOWNLOADS"] = "1"
+    extra_cl = "/Zm300"
+    env["CL"] = (env.get("CL", "") + " " + extra_cl).strip()
+    env["_CL_"] = (env.get("_CL_", "") + " " + extra_cl).strip()
+    return env
+
+
+def _run_nuitka_subprocess(cmd: list, *, cwd: Path | None = None) -> None:
+    """Chay Nuitka khong hoi Yes/No (tu dong tai MinGW neu can)."""
+    subprocess.run(
+        cmd,
+        check=True,
+        cwd=str(cwd or ROOT),
+        env=_nuitka_env(),
+        input="Yes\n",
+        text=True,
+    )
+
+
+def bootstrap_nuitka_toolchain() -> None:
+    """Tai compiler cache truoc, tranh prompt giua build."""
+    print("[BUILD] Bootstrap Nuitka toolchain (auto Yes)...")
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "nuitka",
+                "--assume-yes-for-downloads",
+                "--version",
+            ],
+            cwd=ROOT,
+            env=_nuitka_env(),
+            input="Yes\n",
+            text=True,
+            check=False,
+        )
+    except Exception as exc:
+        print(f"   [WARN] bootstrap: {exc}")
+
+
 def clean_old_build() -> None:
     if DEV_MODE and not CLEAN_BUILD:
         print("[CLEAN] DEV MODE -> skip clean (reuse Nuitka cache)")
@@ -130,6 +202,8 @@ def run_nuitka_main() -> None:
     print("[BUILD] Nuitka standalone ->", APP_NAME)
     if not ENTRY_POINT.exists():
         raise RuntimeError(f"Entry point missing: {ENTRY_POINT}")
+
+    bootstrap_nuitka_toolchain()
 
     cmd = [
         sys.executable,
@@ -163,6 +237,16 @@ def run_nuitka_main() -> None:
         if src_path.exists():
             cmd.append(f"--include-data-dir={src_path.as_posix()}={dest}")
 
+    for src, dest in LICENSE_DATA_FILES:
+        src_path = ROOT / src
+        if src_path.exists():
+            cmd.append(f"--include-data-files={src_path.as_posix()}={dest}")
+
+    for src, dest in BUILD_CONFIG_DIST:
+        src_path = ROOT / src
+        if src_path.exists():
+            cmd.append(f"--include-data-files={src_path.as_posix()}={dest}")
+
     if ICON_PATH.exists():
         cmd.append(f"--windows-icon-from-ico={ICON_PATH.as_posix()}")
 
@@ -174,13 +258,8 @@ def run_nuitka_main() -> None:
 
     cmd.append(str(ENTRY_POINT))
 
-    env = os.environ.copy()
-    extra_cl = "/Zm300"
-    env["CL"] = (env.get("CL", "") + " " + extra_cl).strip()
-    env["_CL_"] = (env.get("_CL_", "") + " " + extra_cl).strip()
-
     print("   [CMD]", " ".join(cmd[:8]), "...")
-    subprocess.run(cmd, check=True, cwd=ROOT, env=env)
+    _run_nuitka_subprocess(cmd)
 
     nuitka_dist = None
     for d in DIST_ROOT.iterdir():
@@ -220,14 +299,16 @@ def _copy_config_tree() -> None:
             shutil.copy2(item, dst)
 
     dist_cfg = dst_cfg / "config.json"
+    dist_tpl = dst_cfg / "config.dist.json"
     if CONFIG_DIST.exists():
         shutil.copy2(CONFIG_DIST, dist_cfg)
+        shutil.copy2(CONFIG_DIST, dist_tpl)
     else:
         shutil.copy2(src_cfg / "config.json", dist_cfg)
 
     data = json.loads(dist_cfg.read_text(encoding="utf-8"))
     if isinstance(data, dict):
-        data["VERSION"] = _version_without_v()
+        data.pop("VERSION", None)
         dist_cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("   [OK] config/")
 
@@ -237,15 +318,29 @@ def copy_resources() -> None:
     for src_name, _ in DATA_DIRS:
         src = ROOT / src_name
         dst = DIST_DIR / src_name
-        if src.exists() and not dst.exists():
+        if src.exists():
+            if dst.exists():
+                shutil.rmtree(dst, ignore_errors=True)
             shutil.copytree(src, dst, dirs_exist_ok=True)
-            print(f"   [OK] {src_name}/")
+            print(f"   [OK] {src_name}/ (synced)")
 
     _copy_config_tree()
+
+    print("[BUILD] Bundling runtime tools (ffmpeg)...")
+    try:
+        from bundle_runtime_tools import bundle_ffmpeg_to, bundle_optional_chrome_to
+
+        bundle_ffmpeg_to(DIST_DIR)
+        bundle_optional_chrome_to(DIST_DIR)
+    except Exception as exc:
+        print(f"   [WARN] bundle runtime tools: {exc}")
 
     for rel in STORAGE_DIRS:
         (DIST_DIR / rel).mkdir(parents=True, exist_ok=True)
     print(f"   [OK] storage dirs ({len(STORAGE_DIRS)})")
+
+    (DIST_DIR / "APP_VERSION").write_text(CURRENT_VERSION + "\n", encoding="utf-8")
+    print(f"   [OK] APP_VERSION ({CURRENT_VERSION})")
 
     readme = DIST_DIR / "HUONG_DAN.txt"
     readme.write_text(
@@ -255,6 +350,9 @@ def copy_resources() -> None:
 1. Giai nen toan bo thu muc
 2. Chay {APP_NAME}.exe
 3. Mo http://127.0.0.1:5000
+
+tools/ffmpeg/bin — da kem san (khong can cai ffmpeg)
+Can Google Chrome (cai tren Windows) de tao video Grok/Veo3
 
 Cap nhat: GitHub {GITHUB_USER}/{GITHUB_REPO}
 Zip: {UPDATE_ZIP_NAME} + update.json

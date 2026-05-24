@@ -2,6 +2,8 @@ import asyncio
 import threading
 import subprocess
 
+from utils.path_helper import CONFIG_FILE
+
 def _win_subprocess_kwargs():
     import os
     if os.name != 'nt':
@@ -63,8 +65,7 @@ def setup_veo3_profile_with_auth():
         from utils.veo3.veo_get_token import auto_collect_veo_auth_from_flow
         
         # Lấy CDP port từ config
-        base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(base_dir, 'config', 'config.json')
+        config_path = str(CONFIG_FILE)
         cdp_port = 9222
         try:
             if os.path.exists(config_path):
@@ -250,8 +251,7 @@ class _GlobalBrowser:
 
         def _load_cdp_port_default_9222() -> int:
             try:
-                base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                cfg_path = os.path.join(base_dir, 'config', 'config.json')
+                cfg_path = str(CONFIG_FILE)
                 if not os.path.exists(cfg_path):
                     return 9222
                 with open(cfg_path, 'r', encoding='utf-8') as f:

@@ -1187,10 +1187,6 @@ function initTaoVideoPage() {
         _setVideoProgress(idx, 0, null, null);
         _setVideoSceneStatus(idx, '');
         _setVideoResultLink(idx, '');
-        try {
-            delete rowEl.dataset.creditRefreshed;
-        } catch (e) { }
-
         _setRowCreateBtnState(idx, true);
         _setVideoSceneStatus(idx, 'Đang tạo cảnh 1');
 
@@ -1243,18 +1239,6 @@ function initTaoVideoPage() {
                         window.showPaymentOverlay(msg);
                     }
                 } catch (e) { }
-
-                // best-effort refresh credit
-                try {
-                    const uid = (window.configData && window.configData.ACCOUNT_ID) ? String(window.configData.ACCOUNT_ID || '').trim() : '';
-                    if (uid) {
-                        await fetch('/api/check', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ user_id: uid }),
-                        }).catch(() => null);
-                    }
-                } catch (e) { }
                 if (typeof window.showSuccessOverlay === 'function') {
                     window.showSuccessOverlay(msg);
                 } else {
@@ -1263,13 +1247,6 @@ function initTaoVideoPage() {
                 _setRowCreateBtnState(idx, false);
                 return;
             }
-
-            // Refresh credit immediately after server accepted the job.
-            try {
-                if (typeof window.refreshCreditAsync === 'function') {
-                    await window.refreshCreditAsync();
-                }
-            } catch (e) { }
 
             let newTaskId = '';
             try {
@@ -1312,22 +1289,6 @@ function initTaoVideoPage() {
         _createVideosRunning = false;
     };
 
-    const _refreshCreditThrottled = async () => {
-        try {
-            const now = Date.now();
-            if (window.__creditRefreshInFlight) return;
-            if (window.__lastCreditRefreshTs && (now - window.__lastCreditRefreshTs) < 1500) return;
-            window.__creditRefreshInFlight = true;
-            window.__lastCreditRefreshTs = now;
-            if (typeof window.refreshCreditAsync === 'function') {
-                await window.refreshCreditAsync();
-            }
-        } catch (e) {
-        } finally {
-            window.__creditRefreshInFlight = false;
-        }
-    };
-
     const _pollOnce = async () => {
         if (!_createVideosPending) return;
         const ids = Object.keys(_createVideosPending);
@@ -1356,55 +1317,8 @@ function initTaoVideoPage() {
                 const totalScenes = body.total_scenes;
                 const phase = String(body.phase || '');
                 const resultUrl = String(body.result_url || '');
-                const creditVerified = body.credit_verified;
-                const creditVerifyMessage = String(body.credit_verify_message || '');
-
-                // Per-task credit refresh: as soon as verify result is available, refresh UI once for this row.
-                try {
-                    if (rowEl && String(rowEl.dataset.creditRefreshed || '') !== '1') {
-                        if (creditVerified !== undefined && creditVerified !== null) {
-                            rowEl.dataset.creditRefreshed = '1';
-                            await _refreshCreditThrottled();
-                            if (creditVerified === false) {
-                                const msg = creditVerifyMessage ? creditVerifyMessage : 'Verify thất bại';
-                                _setVideoSceneStatus(videoIndex, `Xác nhận lượt lỗi: ${msg}`);
-                            }
-                        }
-                    }
-                } catch (e) { }
-
-                // Some providers update credit slightly after verify completes.
-                // Refresh again on phase=verified and on status=completed (throttled) so UI always catches up.
-                try {
-                    if (rowEl) {
-                        if (phase === 'verified' && String(rowEl.dataset.creditVerifiedRefreshed || '') !== '1') {
-                            rowEl.dataset.creditVerifiedRefreshed = '1';
-                            await _refreshCreditThrottled();
-                        }
-                        if (status === 'completed' && String(rowEl.dataset.creditCompletedRefreshed || '') !== '1') {
-                            rowEl.dataset.creditCompletedRefreshed = '1';
-                            await _refreshCreditThrottled();
-                        }
-                    }
-                } catch (e) { }
-
                 if (progress !== undefined && progress !== null) {
                     _setVideoProgress(videoIndex, progress, sceneIndex, totalScenes);
-                }
-
-                if (phase === 'verifying') {
-                    _setVideoSceneStatus(videoIndex, 'Đang xác nhận lượt');
-                    if (resultUrl) {
-                        _setVideoResultLink(videoIndex, resultUrl);
-                        if (rowEl) rowEl.dataset.resultUrl = resultUrl;
-                        const playBtn = document.getElementById(`video-play-btn-${videoIndex}`);
-                        if (playBtn) playBtn.style.display = 'flex';
-                    }
-                    return;
-                }
-
-                if (phase === 'verified') {
-                    _setVideoSceneStatus(videoIndex, 'Đã xác nhận lượt');
                 }
 
                 if (phase === 'downloading') {
@@ -1420,11 +1334,8 @@ function initTaoVideoPage() {
                         if (playBtn) playBtn.style.display = 'flex';
                     }
 
-                    // Only stop polling when credit verification has been written.
-                    if (creditVerified !== undefined && creditVerified !== null) {
-                        _setRowCreateBtnState(videoIndex, false);
-                        delete _createVideosPending[taskId];
-                    }
+                    _setRowCreateBtnState(videoIndex, false);
+                    delete _createVideosPending[taskId];
                     return;
                 }
 
@@ -1563,9 +1474,6 @@ function initTaoVideoPage() {
                 _setVideoProgress(idx, 0, null, null);
                 _setVideoSceneStatus(idx, '');
                 _setVideoResultLink(idx, '');
-                try {
-                    delete rowEl.dataset.creditRefreshed;
-                } catch (e) { }
             });
 
             _setAllRowCreateBtnState(true);
@@ -1596,18 +1504,6 @@ function initTaoVideoPage() {
                             window.showPaymentOverlay(msg);
                         }
                     } catch (e) { }
-
-                    // best-effort refresh credit
-                    try {
-                        const uid = (window.configData && window.configData.ACCOUNT_ID) ? String(window.configData.ACCOUNT_ID || '').trim() : '';
-                        if (uid) {
-                            await fetch('/api/check', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ user_id: uid }),
-                            }).catch(() => null);
-                        }
-                    } catch (e) { }
                     if (typeof window.showSuccessOverlay === 'function') {
                         window.showSuccessOverlay(msg);
                     } else {
@@ -1617,13 +1513,6 @@ function initTaoVideoPage() {
                     startBtn.textContent = 'Bắt đầu';
                     return;
                 }
-
-                // Refresh credit immediately after server accepted the batch.
-                try {
-                    if (typeof window.refreshCreditAsync === 'function') {
-                        await window.refreshCreditAsync();
-                    }
-                } catch (e) { }
 
                 const mappings = Array.isArray(data.tasks) ? data.tasks : [];
                 _createVideosPending = {};

@@ -27,10 +27,14 @@ import sys
 from flask import jsonify, send_from_directory, request
 from werkzeug.utils import secure_filename
 
+from utils.runtime_paths import get_ffmpeg_exe
 
-BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MUSIC_DIR = os.path.join(BASE_DIR, "config", "Music")
-UPLOAD_TMP_DIR = os.path.join(BASE_DIR, "tmp_uploads")
+
+from utils.path_helper import BASE_DIR, MUSIC_DIR, TMP_UPLOADS_DIR, pstr
+
+BASE_DIR = pstr(BASE_DIR)
+MUSIC_DIR = pstr(MUSIC_DIR)
+UPLOAD_TMP_DIR = pstr(TMP_UPLOADS_DIR)
 
 os.makedirs(MUSIC_DIR, exist_ok=True)
 os.makedirs(UPLOAD_TMP_DIR, exist_ok=True)
@@ -217,7 +221,7 @@ def _process_source_to_music(
             counter += 1
 
         cmd = [
-            "ffmpeg",
+            get_ffmpeg_exe(),
             "-y",
             "-i",
             src_path,

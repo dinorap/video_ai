@@ -296,25 +296,14 @@ async function loadConfig() {
         }
         const data = await response.json();
 
-        const versionElements = document.querySelectorAll('.app-version');
-        versionElements.forEach(el => {
-            el.innerText = `v${data.VERSION}`;
-        });
-
-        const userIdElement = document.getElementById('userId');
-        if (userIdElement) {
-            const accountId = String(data.ACCOUNT_ID || '').trim();
-            userIdElement.innerText = accountId || 'Nhập User ID';
-            data.ACCOUNT_ID = accountId;
+        if (typeof loadAppVersion === 'function') {
+            await loadAppVersion();
         }
 
         window.configData = data;
 
-        // Auto-check account credit via local app API (server will call utils/callserver.py)
-        try {
-            await refreshCreditAsync();
-        } catch (_) {
-            setCreditDisplayEmpty();
+        if (typeof fetchLicenseStatus === 'function') {
+            await fetchLicenseStatus();
         }
 
         // Sidebar model select (UI text may not match MODEL_AI string, so only best-effort)
@@ -344,6 +333,8 @@ async function loadConfig() {
 }
 
 
+<<<<<<< HEAD
+=======
 function setCreditDisplay(html) {
     const creditEls = document.querySelectorAll('.credit-value');
     if (!creditEls || !creditEls.length) return;
@@ -405,70 +396,10 @@ async function refreshCreditAsync() {
     }
 }
 
+>>>>>>> 1a6e21a603f23a8edb0592d50fac2d48126f28ad
 try {
-    window.refreshCreditAsync = refreshCreditAsync;
     window.openLogToggleModal = openLogToggleModal;
 } catch (e) { }
-
-function copyId(event) {
-    if (event) event.stopPropagation();
-    const idEl = document.getElementById('userId');
-    if (!idEl) return;
-    const idText = idEl.innerText;
-    navigator.clipboard.writeText(idText).then(() => {
-        alert('Đã sao chép User ID thành công!');
-    });
-}
-
-function enableEdit() {
-    const userIdSpan = document.getElementById('userId');
-    if (!userIdSpan) return;
-    if (userIdSpan.contentEditable === 'true') return;
-
-    try {
-        window.__userIdBeforeEdit = String(userIdSpan.innerText || '').trim();
-    } catch (_) { }
-
-    userIdSpan.contentEditable = 'true';
-    userIdSpan.focus();
-
-    const btnCopy = document.getElementById('btn-copy');
-    const btnSave = document.getElementById('btn-save');
-    if (btnCopy) btnCopy.style.display = 'none';
-    if (btnSave) btnSave.style.display = 'inline-block';
-}
-
-function saveUserId(event) {
-    if (event) event.stopPropagation();
-    const modal = document.getElementById('confirmModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    }
-}
-
-function cancelEdit() {
-    const userIdSpan = document.getElementById('userId');
-    if (!userIdSpan) return;
-
-    try {
-        if (window.__userIdBeforeEdit !== undefined && window.__userIdBeforeEdit !== null) {
-            userIdSpan.innerText = String(window.__userIdBeforeEdit);
-        }
-    } catch (_) { }
-
-    userIdSpan.contentEditable = 'false';
-    const btnCopy = document.getElementById('btn-copy');
-    const btnSave = document.getElementById('btn-save');
-    if (btnCopy) btnCopy.style.display = 'inline-block';
-    if (btnSave) btnSave.style.display = 'none';
-}
-
-function closeModal() {
-    const modal = document.getElementById('confirmModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
 
 function initLogSettingsBindings() {
     const logBtn = document.getElementById('btn-log-settings');
@@ -600,63 +531,6 @@ function updateLogStatusDisplay(enabled) {
         statusText.textContent = enabled ? 'Đang tắt log' : 'Đang bật log';
         statusText.style.color = enabled ? '#f44336' : '#4CAF50';
     }
-}
-
-function initConfirmModalBindings() {
-    const btn = document.getElementById('confirmSaveBtn');
-    if (!btn) return;
-
-    btn.onclick = async function () {
-        const userIdSpan = document.getElementById('userId');
-        if (!userIdSpan) return;
-
-        const newId = userIdSpan.innerText.trim();
-        if (!newId) {
-            const msg = document.getElementById('modalMessage');
-            if (msg) msg.innerText = 'User ID không hợp lệ';
-            return;
-        }
-
-        // Persist to config/config.json
-        try {
-            await fetch('/save_config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ACCOUNT_ID: newId }),
-            });
-        } catch (_) { }
-
-        try {
-            if (window.configData && typeof window.configData === 'object') {
-                window.configData.ACCOUNT_ID = newId;
-            }
-        } catch (_) { }
-
-        try {
-            await refreshCreditAsync();
-        } catch (_) {
-            setCreditDisplayEmpty();
-        }
-
-        userIdSpan.contentEditable = 'false';
-
-        const btnCopy = document.getElementById('btn-copy');
-        const btnSave = document.getElementById('btn-save');
-        if (btnCopy) btnCopy.style.display = 'inline-block';
-        if (btnSave) btnSave.style.display = 'none';
-
-        const modalMessage = document.getElementById('modalMessage');
-        if (modalMessage) modalMessage.innerText = 'Lưu thành công ✔';
-
-        const modalButtons = document.querySelector('.modal-buttons');
-        if (modalButtons) modalButtons.style.display = 'none';
-
-        setTimeout(() => {
-            closeModal();
-            if (modalMessage) modalMessage.innerText = 'Lưu ID mới?';
-            if (modalButtons) modalButtons.style.display = 'flex';
-        }, 1500);
-    };
 }
 
 function showSuccessOverlay(message) {
@@ -1189,7 +1063,6 @@ function initSettingsAccountBindings() {
 
 window.onload = async function () {
     await loadOverlays();
-    initConfirmModalBindings();
     initLogSettingsBindings();
     initExitAppBindings();
     initTabBindings();
@@ -1226,6 +1099,8 @@ window.onload = async function () {
         }
     } catch (_) { }
 
+<<<<<<< HEAD
+=======
     // Show intro splash if not already shown this session
     showIntroSplash();
 
@@ -1245,6 +1120,7 @@ window.onload = async function () {
             cancelEdit();
         }
     });
+>>>>>>> 1a6e21a603f23a8edb0592d50fac2d48126f28ad
 };
 
 // ========== INTRO SPLASH ==========

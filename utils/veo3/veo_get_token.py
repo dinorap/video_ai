@@ -21,8 +21,8 @@ BLOCK_KEYWORDS = [
 
 
 def _veo_auth_path() -> Path:
-    backend_dir = Path(__file__).resolve().parents[1]  # backend/
-    return backend_dir / "config" / "veo_auth.json"
+    from utils.path_helper import VEO_AUTH_FILE
+    return VEO_AUTH_FILE
 
 
 def _read_auth_file() -> Dict[str, Any]:

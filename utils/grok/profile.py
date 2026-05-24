@@ -3,6 +3,8 @@ import subprocess
 import shutil
 import sys
 
+from utils.path_helper import PROFILE_DIR as _PROFILE_DIR_PATH
+
 
 def _win_subprocess_kwargs():
     if os.name != 'nt':
@@ -11,16 +13,23 @@ def _win_subprocess_kwargs():
     return {}
 
 
-# Lấy đường dẫn tuyệt đối đến thư mục gốc của project (thư mục chứa app.py) hoặc thư mục chứa file exe
-_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath(os.path.join(_CURRENT_DIR, "..", ".."))
-PROFILE_DIR = os.path.join(_PROJECT_ROOT, "profile")
+_PROJECT_ROOT = str(_PROFILE_DIR_PATH.parent)
+PROFILE_DIR = str(_PROFILE_DIR_PATH)
 
 
 print(f"DEBUG: Profile directory set to: {PROFILE_DIR}")
 
 
 def find_chrome():
+    try:
+        from utils.runtime_paths import resolve_chrome_executable
+
+        found = resolve_chrome_executable({})
+        if found:
+            return found
+    except Exception:
+        pass
+
     paths = [
         "/usr/bin/google-chrome",
         "/usr/bin/google-chrome-stable",
