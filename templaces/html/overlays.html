@@ -53,6 +53,287 @@
     </div>
 </div>
 
+<!-- Thông báo lỗi chung -->
+<div id="errorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-error">
+        <div class="notification-icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="notification-title">Đã xảy ra lỗi</div>
+        <div id="errorModalMessage" class="notification-message">
+            Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeErrorModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo cảnh báo -->
+<div id="warningModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-warning">
+        <div class="notification-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="notification-title">Cảnh báo</div>
+        <div id="warningModalMessage" class="notification-message">
+            Vui lòng kiểm tra lại thông tin.
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeWarningModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo thành công -->
+<div id="successModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-success">
+        <div class="notification-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="notification-title">Thành công</div>
+        <div id="successModalMessage" class="notification-message">
+            Thao tác đã được thực hiện thành công.
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-confirm" onclick="closeSuccessModal()">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo hết lượt tạo / hết credit -->
+<div id="outOfQuotaModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-warning" style="max-width: 480px;">
+        <div class="notification-icon">
+            <i class="fas fa-coins"></i>
+        </div>
+        <div class="notification-title">Hết lượt tạo</div>
+        <div class="notification-message">
+            <p>Tài khoản của bạn đã hết lượt tạo video/ảnh.</p>
+            <p style="margin-top: 10px;"><strong>Vui lòng thực hiện một trong các cách sau:</strong></p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Đăng nhập tài khoản mới có credit</li>
+                <li>Liên hệ admin để nạp thêm credit</li>
+                <li>Đợi credit được cập nhật (nếu có)</li>
+            </ul>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeOutOfQuotaModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo tài khoản không hợp lệ -->
+<div id="invalidAccountModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-error" style="max-width: 480px;">
+        <div class="notification-icon">
+            <i class="fas fa-user-slash"></i>
+        </div>
+        <div class="notification-title">Tài khoản không hợp lệ</div>
+        <div class="notification-message">
+            <p>User ID không hợp lệ hoặc chưa được đăng ký.</p>
+            <p style="margin-top: 10px;"><strong>Hướng dẫn:</strong></p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Kiểm tra lại User ID đã nhập</li>
+                <li>Đảm bảo User ID có trong hệ thống</li>
+                <li>Liên hệ admin để được cấp User ID mới</li>
+            </ul>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeInvalidAccountModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo lỗi kết nối mạng -->
+<div id="networkErrorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-error" style="max-width: 480px;">
+        <div class="notification-icon">
+            <i class="fas fa-wifi"></i>
+        </div>
+        <div class="notification-title">Lỗi kết nối mạng</div>
+        <div class="notification-message">
+            <p>Không thể kết nối đến server. Vui lòng kiểm tra:</p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Kết nối Internet của bạn</li>
+                <li>Đảm bảo ứng dụng đang chạy đúng cách</li>
+                <li>Thử khởi động lại ứng dụng</li>
+            </ul>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeNetworkErrorModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo lỗi tạo video/ảnh -->
+<div id="creationErrorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-error" style="max-width: 500px;">
+        <div class="notification-icon">
+            <i class="fas fa-video-slash"></i>
+        </div>
+        <div class="notification-title">Lỗi khi tạo nội dung</div>
+        <div id="creationErrorMessage" class="notification-message">
+            <p>Không thể tạo video/ảnh. Nguyên nhân có thể là:</p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Tài khoản AI chưa được đăng nhập</li>
+                <li>Hết credit hoặc lượt tạo</li>
+                <li>Lỗi từ phía dịch vụ AI (Grok, Veo3...)</li>
+                <li>Kết nối mạng không ổn định</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong>Giải pháp:</strong> Kiểm tra lại tài khoản và thử tạo lại.</p>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeCreationErrorModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hướng dẫn nhanh khi mới bắt đầu -->
+<div id="quickGuideModal" class="modal-overlay" style="display:none;">
+    <div class="help-guide-box" style="max-width: 720px;">
+        <div class="help-guide-header">
+            <div>
+                <div class="help-guide-title"><i class="fas fa-rocket"></i> Bắt đầu nhanh</div>
+                <div class="help-guide-subtitle">Hướng dẫn sử dụng cơ bản trong 5 bước</div>
+            </div>
+            <button type="button" class="help-guide-close" onclick="closeQuickGuideModal()">×</button>
+        </div>
+
+        <div class="help-guide-content">
+            <div class="help-section">
+                <h3><span class="step-number">1</span> Nhập User ID</h3>
+                <p>
+                    Ở thanh bên trái, nhấp vào <b>User ID</b> và nhập mã tài khoản của bạn.
+                    Sau đó nhấn <b>Lưu</b> để xác nhận. Credit của bạn sẽ được hiển thị ngay bên dưới.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><span class="step-number">2</span> Chọn Model AI</h3>
+                <p>
+                    Chọn model AI bạn muốn sử dụng: <b>Grok (X-AI)</b>, hoặc <b>Veo3 (Google)</b>.
+                    Nhấn <b>Thiết lập tài khoản</b> để đăng nhập tài khoản AI tương ứng trong trình duyệt.
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><span class="step-number">3</span> Cấu hình Video</h3>
+                <p>
+                    Trong mục <b>Cấu hình chạy</b>, chọn chất lượng video (<b>720p</b> hoặc <b>1080p</b>)
+                    và tỉ lệ khung hình (<b>9:16</b> cho TikTok/Reels, <b>16:9</b> cho YouTube).
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><span class="step-number">4</span> Tạo nội dung</h3>
+                <p>
+                    - Vào tab <b>Tạo Video</b> hoặc <b>Tạo Ảnh</b><br>
+                    - Nhập prompt mô tả nội dung bạn muốn<br>
+                    - Nhấn <b>Bắt đầu</b> để khởi tạo
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><span class="step-number">5</span> Lưu kết quả</h3>
+                <p>
+                    Khi video/ảnh hoàn tất, nhấn <b>Lưu</b> để chuyển file về thư mục bạn đã chọn
+                    (xem mục <b>Thư mục kết quả</b> trong sidebar).
+                </p>
+            </div>
+        </div>
+
+        <div class="help-guide-footer">
+            <button type="button" class="btn-small" onclick="openFullHelpGuide()">
+                <i class="fas fa-book-open"></i> Xem hướng dẫn đầy đủ
+            </button>
+            <button type="button" class="modal-confirm" onclick="closeQuickGuideModal()">Đã hiểu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hướng dẫn chi tiết tài khoản -->
+<div id="accountGuideModal" class="modal-overlay" style="display:none;">
+    <div class="help-guide-box" style="max-width: 680px;">
+        <div class="help-guide-header">
+            <div>
+                <div class="help-guide-title"><i class="fas fa-id-card"></i> Hướng dẫn về User ID</div>
+                <div class="help-guide-subtitle">Cách nhận và sử dụng User ID</div>
+            </div>
+            <button type="button" class="help-guide-close" onclick="closeAccountGuideModal()">×</button>
+        </div>
+
+        <div class="help-guide-content">
+            <div class="help-section">
+                <h3><i class="fas fa-question-circle"></i> User ID là gì?</h3>
+                <p>
+                    User ID là mã tài khoản cá nhân của bạn trong hệ thống AI Video Studio.
+                    Mỗi User ID có một số lượt tạo video/ảnh nhất định (credit).
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><i class="fas fa-key"></i> Cách nhận User ID</h3>
+                <p>
+                    <strong>Liên hệ admin</strong> để được cấp User ID mới hoặc nạp thêm credit.
+                    User ID thường là một chuỗi ký tự dạng: <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">abc123xyz456</code>
+                </p>
+            </div>
+
+            <div class="help-section">
+                <h3><i class="fas fa-sync-alt"></i> Đổi tài khoản</h3>
+                <p>
+                    Để đổi sang tài khoản mới:
+                </p>
+                <ul style="margin: 10px 0 0 20px; text-align: left;">
+                    <li>Nhấp vào User ID hiện tại</li>
+                    <li>Xóa mã cũ và nhập User ID mới</li>
+                    <li>Nhấn <b>Lưu</b> để xác nhận</li>
+                    <li>Credit sẽ được cập nhật tự động</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3><i class="fas fa-exclamation-circle"></i> Khi hết lượt</h3>
+                <p>
+                    Khi thấy thông báo <b>"Hết lượt tạo"</b>, bạn cần:
+                </p>
+                <ul style="margin: 10px 0 0 20px; text-align: left;">
+                    <li>Liên hệ admin để nạp thêm credit</li>
+                    <li>Hoặc chờ credit được cập nhật theo chu kỳ</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="help-guide-footer">
+            <button type="button" class="modal-confirm" onclick="closeAccountGuideModal()">Đã hiểu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thông báo lỗi đăng nhập AI -->
+<div id="aiLoginErrorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-warning" style="max-width: 500px;">
+        <div class="notification-icon">
+            <i class="fas fa-user-check"></i>
+        </div>
+        <div class="notification-title">Chưa đăng nhập tài khoản AI</div>
+        <div class="notification-message">
+            <p>Bạn cần đăng nhập tài khoản AI trước khi tạo nội dung.</p>
+            <p style="margin-top: 10px;"><strong>Các bước thực hiện:</strong></p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Chọn model AI bạn muốn dùng (Grok, Veo3...)</li>
+                <li>Nhấn nút <b>"Thiết lập tài khoản"</b></li>
+                <li>Đăng nhập tài khoản tương ứng trong trình duyệt</li>
+                <li>Quay lại ứng dụng và thử tạo lại</li>
+            </ul>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeAiLoginErrorModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <!-- Overlay xác nhận xóa nhạc -->
 <div id="deleteMusicModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">

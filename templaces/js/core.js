@@ -377,6 +377,12 @@ async function refreshCreditAsync() {
         const body = await res.json().catch(() => ({}));
 
         if (!res.ok || body.ok === false) {
+            // Nếu lỗi từ server, hiển thị thông báo tài khoản không hợp lệ
+            if (body.error && (body.error.toLowerCase().includes('invalid') || body.error.toLowerCase().includes('không tìm thấy'))) {
+                showInvalidAccountModal();
+            } else if (body.error && body.error.toLowerCase().includes('quota')) {
+                showOutOfQuotaModal();
+            }            
             setCreditDisplayEmpty();
             return body;
         }
@@ -385,8 +391,15 @@ async function refreshCreditAsync() {
         const limit = (body && typeof body.limit !== 'undefined') ? body.limit : 0;
         setCreditDisplay(`<i class="fas fa-coins"></i> ${count}/${limit}`);
 
+        // Nếu count = 0, hiển thị thông báo hết lượt
+        if (count === 0) {
+            showOutOfQuotaModal();
+        }
+
         return body;
     } catch (e) {
+        // Lỗi kết nối - có thể hiển thị thông báo mạng
+        showNetworkErrorModal();
         setCreditDisplayEmpty();
         return null;
     }
@@ -1265,3 +1278,183 @@ function showIntroSplash() {
 }
 
 try { window.showIntroSplash = showIntroSplash; } catch(e) {}
+
+// ========== NOTIFICATION MODALS ==========
+
+// Hiển thị thông báo lỗi
+function showErrorModal(message) {
+    const modal = document.getElementById('errorModal');
+    const msgEl = document.getElementById('errorModalMessage');
+    if (modal) {
+        if (msgEl) msgEl.textContent = message || 'Đã xảy ra lỗi không xác định.';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeErrorModal() {
+    const modal = document.getElementById('errorModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị cảnh báo
+function showWarningModal(message) {
+    const modal = document.getElementById('warningModal');
+    const msgEl = document.getElementById('warningModalMessage');
+    if (modal) {
+        if (msgEl) msgEl.textContent = message || 'Vui lòng kiểm tra lại thông tin.';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeWarningModal() {
+    const modal = document.getElementById('warningModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo thành công
+function showSuccessModal(message) {
+    const modal = document.getElementById('successModal');
+    const msgEl = document.getElementById('successModalMessage');
+    if (modal) {
+        if (msgEl) msgEl.textContent = message || 'Thao tác đã được thực hiện thành công.';
+        modal.style.display = 'flex';
+    }
+}
+
+function closeSuccessModal() {
+    const modal = document.getElementById('successModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo hết lượt tạo
+function showOutOfQuotaModal() {
+    const modal = document.getElementById('outOfQuotaModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeOutOfQuotaModal() {
+    const modal = document.getElementById('outOfQuotaModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo tài khoản không hợp lệ
+function showInvalidAccountModal() {
+    const modal = document.getElementById('invalidAccountModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeInvalidAccountModal() {
+    const modal = document.getElementById('invalidAccountModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo lỗi kết nối mạng
+function showNetworkErrorModal(message) {
+    const modal = document.getElementById('networkErrorModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeNetworkErrorModal() {
+    const modal = document.getElementById('networkErrorModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo lỗi khi tạo nội dung
+function showCreationErrorModal(message) {
+    const modal = document.getElementById('creationErrorModal');
+    const msgEl = document.getElementById('creationErrorMessage');
+    if (modal) {
+        if (msgEl) {
+            if (message) {
+                msgEl.innerHTML = `<p>${message}</p><p style="margin-top: 10px;"><strong>Giải pháp:</strong> Kiểm tra lại tài khoản và thử tạo lại.</p>`;
+            }
+        }
+        modal.style.display = 'flex';
+    }
+}
+
+function closeCreationErrorModal() {
+    const modal = document.getElementById('creationErrorModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị hướng dẫn nhanh
+function showQuickGuideModal() {
+    const modal = document.getElementById('quickGuideModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeQuickGuideModal() {
+    const modal = document.getElementById('quickGuideModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Mở hướng dẫn đầy đủ
+function openFullHelpGuide() {
+    closeQuickGuideModal();
+    const helpModal = document.getElementById('helpGuideModal');
+    if (helpModal) helpModal.style.display = 'flex';
+}
+
+// Hiển thị hướng dẫn về tài khoản
+function showAccountGuideModal() {
+    const modal = document.getElementById('accountGuideModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAccountGuideModal() {
+    const modal = document.getElementById('accountGuideModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Hiển thị thông báo lỗi đăng nhập AI
+function showAiLoginErrorModal() {
+    const modal = document.getElementById('aiLoginErrorModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAiLoginErrorModal() {
+    const modal = document.getElementById('aiLoginErrorModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Close modals with ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeErrorModal();
+        closeWarningModal();
+        closeSuccessModal();
+        closeOutOfQuotaModal();
+        closeInvalidAccountModal();
+        closeNetworkErrorModal();
+        closeCreationErrorModal();
+        closeQuickGuideModal();
+        closeAccountGuideModal();
+        closeAiLoginErrorModal();
+    }
+});
+
+// Export functions to window for global access
+try {
+    window.showErrorModal = showErrorModal;
+    window.closeErrorModal = closeErrorModal;
+    window.showWarningModal = showWarningModal;
+    window.closeWarningModal = closeWarningModal;
+    window.showSuccessModal = showSuccessModal;
+    window.closeSuccessModal = closeSuccessModal;
+    window.showOutOfQuotaModal = showOutOfQuotaModal;
+    window.closeOutOfQuotaModal = closeOutOfQuotaModal;
+    window.showInvalidAccountModal = showInvalidAccountModal;
+    window.closeInvalidAccountModal = closeInvalidAccountModal;
+    window.showNetworkErrorModal = showNetworkErrorModal;
+    window.closeNetworkErrorModal = closeNetworkErrorModal;
+    window.showCreationErrorModal = showCreationErrorModal;
+    window.closeCreationErrorModal = closeCreationErrorModal;
+    window.showQuickGuideModal = showQuickGuideModal;
+    window.closeQuickGuideModal = closeQuickGuideModal;
+    window.openFullHelpGuide = openFullHelpGuide;
+    window.showAccountGuideModal = showAccountGuideModal;
+    window.closeAccountGuideModal = closeAccountGuideModal;
+    window.showAiLoginErrorModal = showAiLoginErrorModal;
+    window.closeAiLoginErrorModal = closeAiLoginErrorModal;
+} catch(e) {}

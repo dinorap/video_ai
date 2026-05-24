@@ -1092,6 +1092,81 @@ header>div {
     border-top     : 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.notification-modal {
+    text-align: center;
+    max-width: 420px;
+}
+
+.notification-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.notification-error .notification-icon {
+    color: var(--danger);
+    text-shadow: 0 0 20px rgba(255, 52, 52, 0.5);
+}
+
+.notification-warning .notification-icon {
+    color: var(--warning);
+    text-shadow: 0 0 20px rgba(255, 212, 0, 0.5);
+}
+
+.notification-success .notification-icon {
+    color: var(--success);
+    text-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
+}
+
+.notification-title {
+    font-size: 20px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    color: var(--text-main);
+}
+
+.notification-error .notification-title {
+    color: var(--danger);
+}
+
+.notification-warning .notification-title {
+    color: var(--warning);
+}
+
+.notification-success .notification-title {
+    color: var(--success);
+}
+
+.notification-message {
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: left;
+}
+
+.notification-message ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.notification-message li {
+    margin-bottom: 6px;
+}
+
+/* Step number badge */
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: 900;
+    margin-right: 8px;
+    box-shadow: 0 0 12px var(--accent-shadow);
+}
 /* ============================================================================
    UPDATE BUTTON - Nút cập nhật phiên bản mới
    ============================================================================ */
