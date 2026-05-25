@@ -165,6 +165,29 @@
     </div>
 </div>
 
+<!-- Thông báo lỗi tài khoản Grok đạt giới hạn -->
+<div id="grokLimitModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-warning" style="max-width: 500px;">
+        <div class="notification-icon">
+            <i class="fas fa-user-clock"></i>
+        </div>
+        <div class="notification-title">Tài khoản Grok đã đạt giới hạn</div>
+        <div class="notification-message">
+            <p>Tài khoản Grok hiện tại đã đạt giới hạn tạo video.</p>
+            <p style="margin-top: 10px;"><strong>Hướng dẫn:</strong></p>
+            <ul style="margin: 10px 0 0 20px; text-align: left;">
+                <li>Đăng nhập tài khoản Grok khác có credit còn lại</li>
+                <li>Đóng trình duyệt Grok và mở lại bằng nút <b>Thiết lập tài khoản</b></li>
+                <li>Đăng nhập với tài khoản X/Grok mới</li>
+                <li>Quay lại ứng dụng và thử tạo lại</li>
+            </ul>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeGrokLimitModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <!-- Hướng dẫn nhanh khi mới bắt đầu -->
 <div id="quickGuideModal" class="modal-overlay" style="display:none;">
     <div class="help-guide-box" style="max-width: 720px;">

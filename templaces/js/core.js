@@ -1248,6 +1248,17 @@ function closeCreationErrorModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// Hiển thị thông báo tài khoản Grok đạt giới hạn
+function showGrokLimitModal() {
+    const modal = document.getElementById('grokLimitModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeGrokLimitModal() {
+    const modal = document.getElementById('grokLimitModal');
+    if (modal) modal.style.display = 'none';
+}
+
 // Hiển thị hướng dẫn nhanh
 function showQuickGuideModal() {
     const modal = document.getElementById('quickGuideModal');
@@ -1298,6 +1309,7 @@ document.addEventListener('keydown', function(e) {
         closeInvalidAccountModal();
         closeNetworkErrorModal();
         closeCreationErrorModal();
+        closeGrokLimitModal();
         closeQuickGuideModal();
         closeAccountGuideModal();
         closeAiLoginErrorModal();
@@ -1320,6 +1332,8 @@ try {
     window.closeNetworkErrorModal = closeNetworkErrorModal;
     window.showCreationErrorModal = showCreationErrorModal;
     window.closeCreationErrorModal = closeCreationErrorModal;
+    window.showGrokLimitModal = showGrokLimitModal;
+    window.closeGrokLimitModal = closeGrokLimitModal;
     window.showQuickGuideModal = showQuickGuideModal;
     window.closeQuickGuideModal = closeQuickGuideModal;
     window.openFullHelpGuide = openFullHelpGuide;

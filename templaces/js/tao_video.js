@@ -1346,11 +1346,15 @@ function initTaoVideoPage() {
                         err.includes('giới hạn tạo video')
                         || err.includes('tài khoản Grok')
                     ) {
-                        if (typeof window.showSuccessOverlay === 'function') {
-                            window.showSuccessOverlay(err);
+                        if (typeof window.showGrokLimitModal === 'function') {
+                            window.showGrokLimitModal();
                         } else {
                             alert(err);
                         }
+                    } else if (typeof window.showCreationErrorModal === 'function') {
+                        window.showCreationErrorModal(err);
+                    } else {
+                        alert(err);
                     }
                     _setRowCreateBtnState(videoIndex, false);
                     delete _createVideosPending[taskId];
