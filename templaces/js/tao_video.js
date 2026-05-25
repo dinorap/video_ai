@@ -1342,6 +1342,16 @@ function initTaoVideoPage() {
                 if (status === 'failed') {
                     const err = String(body.error || 'Lỗi');
                     _setVideoSceneStatus(videoIndex, `Lỗi: ${err}`);
+                    if (
+                        err.includes('giới hạn tạo video')
+                        || err.includes('tài khoản Grok')
+                    ) {
+                        if (typeof window.showSuccessOverlay === 'function') {
+                            window.showSuccessOverlay(err);
+                        } else {
+                            alert(err);
+                        }
+                    }
                     _setRowCreateBtnState(videoIndex, false);
                     delete _createVideosPending[taskId];
                     return;

@@ -1,8 +1,99 @@
 import asyncio
+import json
 import os
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 import shutil
+
+
+GROK_CONVERSATIONS_NEW_PATH = "/rest/app-chat/conversations/new"
+GROK_ACCOUNT_LIMIT_MESSAGE = (
+    "Tài khoản đã đạt giới hạn tạo video. "
+    "Vui lòng thay đổi tài khoản Grok khác để tiếp tục sử dụng."
+)
+
+
+class GrokAccountLimitError(Exception):
+    """Grok trả error code 8 / heavy usage — cần đổi tài khoản."""
+
+
+def _is_grok_usage_limit_payload(data) -> bool:
+    if not isinstance(data, dict):
+        return False
+    err = data.get("error")
+    if not isinstance(err, dict):
+        return False
+    try:
+        if int(err.get("code")) == 8:
+            return True
+    except (TypeError, ValueError):
+        pass
+    msg = str(err.get("message") or "").lower()
+    if "heavy usage" in msg and "try again later" in msg:
+        return True
+    if "upgrade plan" in msg and "higher limits" in msg:
+        return True
+    return False
+
+
+def _parse_grok_limit_from_text(text: str) -> bool:
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    try:
+        return _is_grok_usage_limit_payload(json.loads(raw))
+    except json.JSONDecodeError:
+        low = raw.lower()
+        return (
+            '"code": 8' in low or '"code":8' in low
+        ) and "heavy usage" in low
+    except Exception:
+        return False
+
+
+def _attach_grok_limit_listener(page) -> dict:
+    """Theo dõi POST conversations/new; set holder['error'] khi gặp giới hạn."""
+    holder: dict = {"error": None}
+
+    async def _on_response(response):
+        if holder.get("error"):
+            return
+        try:
+            url = str(response.url or "")
+            if GROK_CONVERSATIONS_NEW_PATH not in url:
+                return
+            body = await response.text()
+            if _parse_grok_limit_from_text(body):
+                holder["error"] = GROK_ACCOUNT_LIMIT_MESSAGE
+        except Exception:
+            pass
+
+    def _schedule(response):
+        asyncio.create_task(_on_response(response))
+
+    page.on("response", _schedule)
+    return holder
+
+
+async def _raise_if_grok_limit(holder: dict) -> None:
+    msg = holder.get("error")
+    if msg:
+        raise GrokAccountLimitError(str(msg))
+
+
+async def _wait_after_submit(page, holder: dict, timeout_s: float = 45.0) -> None:
+    """Chờ redirect/video hoặc phát hiện lỗi giới hạn từ API."""
+    deadline = asyncio.get_event_loop().time() + float(timeout_s)
+    while asyncio.get_event_loop().time() < deadline:
+        await _raise_if_grok_limit(holder)
+        try:
+            u = str(page.url or "")
+            if "/imagine/post/" in u:
+                return
+        except Exception:
+            pass
+        await asyncio.sleep(0.25)
+    await _raise_if_grok_limit(holder)
 
 
 # =========================
@@ -481,11 +572,15 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
                 pass
 
         page = await context.new_page()
+        limit_holder: Optional[dict] = None
         try:
             if tid:
                 _ACTIVE_VIDEO_PAGES[tid] = page
 
+            limit_holder = _attach_grok_limit_listener(page)
+
             await page.goto("https://grok.com/imagine", timeout=60000)
+            await _raise_if_grok_limit(limit_holder)
 
             upload = page.locator(UPLOAD_INPUT).first
             await upload.wait_for(state="attached", timeout=30000)
@@ -558,34 +653,24 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
             await editor.press("Enter")
             print("✅ Pressed Enter to submit")
 
+            await _wait_after_submit(page, limit_holder, timeout_s=45.0)
+
             try:
-                deadline = asyncio.get_event_loop().time() + 25.0
-                while asyncio.get_event_loop().time() < deadline:
-                    try:
-                        u = str(page.url or '')
-                    except Exception:
-                        u = ''
-                    if '/imagine/post/' in u:
-                        break
-                    await asyncio.sleep(0.3)
-
-                try:
-                    u = str(page.url or '')
-                except Exception:
-                    u = ''
-
-                if '/imagine/post/' in u:
-                    try:
-                        await page.locator('main[tabindex="-1"]').first.click(timeout=3000)
-                    except Exception:
-                        try:
-                            await _click_empty_area(page)
-                        except Exception:
-                            pass
+                u = str(page.url or '')
             except Exception:
-                pass
+                u = ''
+
+            if '/imagine/post/' in u:
+                try:
+                    await page.locator('main[tabindex="-1"]').first.click(timeout=3000)
+                except Exception:
+                    try:
+                        await _click_empty_area(page)
+                    except Exception:
+                        pass
 
             await asyncio.sleep(2)
+            await _raise_if_grok_limit(limit_holder)
 
             video = page.locator(SELECTOR_RESULT_VIDEO).first
             await video.wait_for(state="visible", timeout=int(timeout_s * 1000))
@@ -603,6 +688,8 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
             return result_path
 
         except asyncio.CancelledError:
+            raise
+        except GrokAccountLimitError:
             raise
         except Exception as exc:
             last_exc = exc

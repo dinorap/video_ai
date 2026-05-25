@@ -333,8 +333,6 @@ async function loadConfig() {
 }
 
 
-<<<<<<< HEAD
-=======
 function setCreditDisplay(html) {
     const creditEls = document.querySelectorAll('.credit-value');
     if (!creditEls || !creditEls.length) return;
@@ -396,7 +394,6 @@ async function refreshCreditAsync() {
     }
 }
 
->>>>>>> 1a6e21a603f23a8edb0592d50fac2d48126f28ad
 try {
     window.openLogToggleModal = openLogToggleModal;
 } catch (e) { }
@@ -1099,8 +1096,6 @@ window.onload = async function () {
         }
     } catch (_) { }
 
-<<<<<<< HEAD
-=======
     // Show intro splash if not already shown this session
     showIntroSplash();
 
@@ -1120,7 +1115,6 @@ window.onload = async function () {
             cancelEdit();
         }
     });
->>>>>>> 1a6e21a603f23a8edb0592d50fac2d48126f28ad
 };
 
 // ========== INTRO SPLASH ==========

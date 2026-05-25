@@ -193,3 +193,5 @@ utils/config/veo_auth.json
 *.token
 
 .env
+
+config/veo_auth.json

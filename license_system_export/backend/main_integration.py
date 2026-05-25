@@ -95,7 +95,7 @@ def ensure_license() -> None:
     LICENSE_REASON = None
     
     # Skip license check trong dev mode (optional)
-    is_dev = os.getenv("SKIP_LICENSE_CHECK", "0") == "1"
+    is_dev = "os.getenv("SKIP_LICENSE_CHECK", "0") == "1""
     if is_dev:
         print("🔐 [LICENSE] SKIP_LICENSE_CHECK=1 -> bypass (DEV MODE ONLY)")
         LICENSE_OK = True
