@@ -18,6 +18,18 @@ from utils.grok.profile import (
     setting_veo3_profile
 )
 
+GROK_START_URL = "https://grok.com/"
+FLOW_START_URL = "https://labs.google/fx/vi/tools/flow"
+
+
+def _is_veo3_provider(provider: str) -> bool:
+    p = (provider or "").strip().lower()
+    return "veo3" in p or p in ("google", "veo3 (google)")
+
+
+def _start_url_for_provider(provider: str) -> str:
+    return FLOW_START_URL if _is_veo3_provider(provider) else GROK_START_URL
+
 
 def open_profile(provider: str):
 
@@ -317,7 +329,8 @@ class _GlobalBrowser:
             except Exception:
                 pass
 
-            url = "https://grok.com/"
+            url = _start_url_for_provider(self._provider)
+            print(f"[Browser] Mở Chrome → {url} (provider={self._provider})")
             proc = subprocess.Popen(
                 [
                     chrome,
@@ -416,7 +429,35 @@ class _GlobalBrowser:
                 pass
 
         self._sema = asyncio.Semaphore(5)
+        await self._ensure_provider_start_page()
         return
+
+    async def _ensure_provider_start_page(self) -> None:
+        """Nếu đã mở Grok trước đó mà chuyển Veo3 — điều hướng sang Google Flow."""
+        if not _is_veo3_provider(self._provider):
+            return
+        if not self._context:
+            return
+        target = FLOW_START_URL
+        try:
+            pages = list(self._context.pages or [])
+            if not pages:
+                page = await self._context.new_page()
+                await page.goto(target, wait_until="domcontentloaded", timeout=45000)
+                return
+            for page in pages:
+                try:
+                    cur = str(page.url or "")
+                except Exception:
+                    cur = ""
+                if "labs.google" in cur and "flow" in cur:
+                    continue
+                try:
+                    await page.goto(target, wait_until="domcontentloaded", timeout=45000)
+                except Exception as exc:
+                    print(f"[Browser] Không chuyển tab sang Flow: {exc}")
+        except Exception as exc:
+            print(f"[Browser] _ensure_provider_start_page: {exc}")
 
     def ensure_started(self, provider="grok", download_dir=None):
         download_dir = str(download_dir or "").strip() or None
@@ -429,6 +470,11 @@ class _GlobalBrowser:
                 if self._is_context_alive():
                     self._provider = provider or self._provider
                     self._download_dir = download_dir
+                    if _is_veo3_provider(self._provider):
+                        try:
+                            self._submit(self._ensure_provider_start_page(), timeout=60)
+                        except Exception as exc:
+                            print(f"[Browser] Chuyển Flow: {exc}")
                     return
 
                 self._provider = provider or self._provider

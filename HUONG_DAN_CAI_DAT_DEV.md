@@ -187,14 +187,14 @@ python app.py
  * Serving Flask app 'app'
  * Debug mode: off
 WARNING: This is a development server. Do not use it in a production deployment.
- * Running on http://127.0.0.1:5000
+ * Running on http://127.0.0.1:5555
 Press CTRL+C to quit
 ```
 
 ### Truy cập ứng dụng:
 
 1. Mở trình duyệt
-2. Vào địa chỉ: http://127.0.0.1:5000
+2. Vào địa chỉ: http://127.0.0.1:5555
 3. Giao diện web sẽ hiển thị
 
 ### Dừng server:
@@ -371,7 +371,7 @@ INCLUDE_MODULES = [
 ]
 ```
 
-### 9. Port 5000 đã được sử dụng
+### 9. Port 5555 đã được sử dụng
 
 **Giải pháp**:
 ```bash

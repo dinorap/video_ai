@@ -45,18 +45,26 @@ def install_print_hook() -> None:
 
 
 def load_suppress_from_settings() -> bool:
+    """
+    Load log suppression setting from config.
+    DEFAULT: Always suppress logs (True) for customer builds.
+    Only disable via frontend password-protected interface.
+    """
     try:
         import json
         from utils.path_helper import CONFIG_FILE
 
         if not CONFIG_FILE.is_file():
-            enabled = False
+            # No config file: default to SUPPRESSED (hidden logs)
+            enabled = True
         else:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            enabled = bool(data.get("SUPPRESS_ALL_LOGS", False))
+            # Default to True if key doesn't exist (always hide logs by default)
+            enabled = bool(data.get("SUPPRESS_ALL_LOGS", True))
     except Exception:
-        enabled = False
+        # On any error: default to SUPPRESSED (safe for customer builds)
+        enabled = True
 
     set_suppress_all_logs(enabled)
     return enabled

@@ -34,6 +34,20 @@ async function loadWorkspace(page) {
     }
 }
 
+async function isAppExeMode() {
+    if (typeof window.__appIsExe === 'boolean') {
+        return window.__appIsExe;
+    }
+    try {
+        const res = await fetch('/api/version', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        window.__appIsExe = !!(data && data.exe);
+    } catch (_) {
+        window.__appIsExe = false;
+    }
+    return window.__appIsExe;
+}
+
 function initClientHeartbeat() {
     if (window.__clientHeartbeatStarted) return;
     window.__clientHeartbeatStarted = true;
@@ -64,10 +78,22 @@ function initExitAppBindings() {
                     return;
                 }
 
+                const exeMode = await isAppExeMode();
                 const taskIdsNow = (typeof window.getVideoTaskIdsFromUI === 'function') ? window.getVideoTaskIdsFromUI() : [];
                 const hasForms = Array.isArray(taskIdsNow) && taskIdsNow.length > 0;
 
-                // Nếu không có form/video nào => thoát ngay
+                // Dev (py app.py): chỉ đóng tab UI, server Flask vẫn chạy
+                if (!exeMode) {
+                    try {
+                        if (typeof window.showSuccessOverlay === 'function') {
+                            window.showSuccessOverlay('Đã đóng tab UI. Server vẫn chạy — dừng bằng Ctrl+C trong terminal.');
+                        }
+                    } catch (_) { }
+                    try { window.close(); } catch (_) { }
+                    return;
+                }
+
+                // EXE: không có form/video nào => thoát app
                 if (!hasForms) {
                     window.__shutdownRequested = true;
                     try {
@@ -118,25 +144,7 @@ function initExitAppBindings() {
     if (!window.__exitBeforeUnloadBound) {
         window.__exitBeforeUnloadBound = true;
 
-        if (!window.__exitPagehideBound) {
-            window.__exitPagehideBound = true;
-            window.addEventListener('pagehide', function () {
-                try {
-                    if (window.__shutdownRequested) return;
-                    if (!window.__pendingExitApp) return;
-
-                    const taskIds = (typeof window.getVideoTaskIdsFromUI === 'function') ? window.getVideoTaskIdsFromUI() : [];
-                    const hasTasks = Array.isArray(taskIds) && taskIds.length > 0;
-                    const action = hasTasks ? 'discard' : 'shutdown';
-
-                    if (navigator && navigator.sendBeacon) {
-                        navigator.sendBeacon('/exit_app', new Blob([JSON.stringify({ action, task_ids: hasTasks ? taskIds : [] })], { type: 'application/json' }));
-                    }
-                } catch (_) {
-                }
-            });
-        }
-
+        // Chỉ cảnh báo khi đang có task; không gọi /exit_app khi F5/đóng tab (tránh tắt py app).
         window.addEventListener('beforeunload', function (e) {
             try {
                 if (window.__shutdownRequested) {
@@ -144,7 +152,6 @@ function initExitAppBindings() {
                 }
                 const taskIds = (typeof window.getVideoTaskIdsFromUI === 'function') ? window.getVideoTaskIdsFromUI() : [];
                 if (Array.isArray(taskIds) && taskIds.length > 0) {
-                    window.__pendingExitApp = true;
                     e.preventDefault();
                     e.returnValue = '';
                     return '';
@@ -1066,6 +1073,7 @@ function initSettingsAccountBindings() {
 
 window.onload = async function () {
     await loadOverlays();
+    try { await isAppExeMode(); } catch (_) { }
     initLogSettingsBindings();
     initExitAppBindings();
     initTabBindings();

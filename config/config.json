@@ -5,5 +5,5 @@
   "cloneVideoModel": "gemini-2.5-flash",
   "cloneVideoApiKey": "AIzaSyCoHkAnNPQYFxp7QTL0Iv0b1lqU68QZPeY",
   "CDP_PORT": 9222,
-  "SUPPRESS_ALL_LOGS": true
+  "SUPPRESS_ALL_LOGS": false
 }

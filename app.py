@@ -206,6 +206,8 @@ def get_version():
     return jsonify({
         "version": CURRENT_VERSION,
         "source": "version.py",
+        "exe": bool(is_running_as_exe()),
+        "mode": "exe" if is_running_as_exe() else "dev",
     })
 
 @app.route('/api/update/check', methods=['GET'])
@@ -1282,10 +1284,15 @@ def exit_app():
             except Exception:
                 pass
 
-        # Then shutdown
-        _perform_app_cleanup()
+        if not is_running_as_exe():
+            return jsonify({
+                'ok': True,
+                'dev_mode': True,
+                'server_keeps_running': True,
+                'message': 'Dev mode: server vẫn chạy. Dừng bằng Ctrl+C trong terminal.',
+            })
 
-        # Force-exit the process to ensure the app closes
+        _perform_app_cleanup()
         _force_exit_later(0.4)
         return jsonify({'ok': True})
     except Exception as exc:
@@ -1351,6 +1358,13 @@ del "%~f0" > nul 2>&1
 @app.route('/shutdown', methods=['POST'])
 def shutdown_app():
     try:
+        if not is_running_as_exe():
+            return jsonify({
+                'ok': True,
+                'dev_mode': True,
+                'server_keeps_running': True,
+            })
+
         import os
         import threading
 
@@ -1394,7 +1408,10 @@ def shutdown_app():
 @app.route('/create_images_batch_start', methods=['POST'])
 def create_images_batch_start():
     try:
-        # Backward-compatible alias: reuse the existing /create_images_batch implementation.
+        payload = request.get_json(silent=True) or {}
+        provider = str(payload.get('provider') or '').strip()
+        if 'Veo3' in provider or 'veo3' in provider.lower():
+            return create_images_veo3_handler()
         return create_images_batch()
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
@@ -1537,6 +1554,25 @@ def create_videos_batch_start():
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+@app.route('/cancel_video_task', methods=['POST'])
+def cancel_video_task_handler():
+    try:
+        payload = request.get_json(silent=True) or {}
+        task_id = str(payload.get('task_id') or '').strip()
+        if not task_id:
+            return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
+
+        from utils.control_creat_video import cancel_video_task as cancel_grok_video_task
+        from utils.control_creat_video_veo3_batch import cancel_video_task as cancel_veo3_video_task
+
+        cancel_grok_video_task(task_id)
+        cancel_veo3_video_task(task_id)
+        _mark_tasks_cancelled_best_effort([task_id])
+        return jsonify({'ok': True})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
 @app.route('/cancel_create_videos_batch', methods=['POST'])
 def cancel_create_videos_batch():
     try:
@@ -1548,15 +1584,32 @@ def cancel_create_videos_batch():
         try:
             with _ASYNC_VIDEO_BATCHES_LOCK:
                 for b in (_ASYNC_VIDEO_BATCHES or {}).values():
+                    try:
+                        ce = (b or {}).get('cancel_event')
+                        if ce is not None and getattr(ce, 'set', None):
+                            ce.set()
+                    except Exception:
+                        pass
                     for m in (b or {}).get('mapping') or []:
                         if m and m.get('task_id'):
                             task_ids.append(str(m.get('task_id')))
+                    for t in (b or {}).get('tasks') or []:
+                        tid = str((t or {}).get('task_id') or '').strip()
+                        if tid:
+                            task_ids.append(tid)
                     of = (b or {}).get('out_folder_abs')
                     if of:
                         batch_folders.append(str(of))
         except Exception:
             task_ids = []
             batch_folders = []
+
+        try:
+            from utils.control_creat_video_veo3_batch import cancel_video_task as cancel_veo3_video_task
+            for tid in {str(x).strip() for x in task_ids if str(x).strip()}:
+                cancel_veo3_video_task(tid)
+        except Exception:
+            pass
 
         # Fallback: infer batch folder from tasks.json scenes_dir (works even if server lost _ASYNC_VIDEO_BATCHES)
         try:
@@ -2072,7 +2125,7 @@ def cancel_create_images_batch():
 
 @app.route('/client_ping', methods=['POST'])
 def client_ping():
-    """Client heartbeat from the UI. When UI closes, heartbeat stops and watchdog will exit the process."""
+    """Client heartbeat from the UI (dùng cho watchdog tự thoát khi chạy EXE)."""
     try:
         import time
         with _CLIENT_PING_LOCK:
@@ -2087,10 +2140,14 @@ import webbrowser
 import threading
 
 def open_browser():
-    webbrowser.open("http://127.0.0.1:5000")
+    webbrowser.open("http://127.0.0.1:5555")
 
 
 def _start_client_watchdog(timeout_sec: float = 12.0, check_interval: float = 2.0) -> None:
+    """Chỉ tự thoát khi chạy EXE (đóng cửa sổ UI). Dev `py app.py` không tự tắt."""
+    if not is_running_as_exe():
+        return
+
     def _loop():
         import time
         while True:
@@ -2106,7 +2163,6 @@ def _start_client_watchdog(timeout_sec: float = 12.0, check_interval: float = 2.
                     finally:
                         return
             except Exception:
-                # Never crash watchdog
                 pass
 
     try:
@@ -2183,14 +2239,28 @@ def create_images_veo3_handler():
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
+
+        out_dir_label = out_dir_label.replace('\u200e', '').replace('\u200f', '').replace('\ufeff', '')
+        out_dir_label = out_dir_label.strip().strip('"').strip("'").strip()
+        try:
+            out_dir_label = os.path.normpath(out_dir_label)
+        except Exception:
+            out_dir_label = str(out_dir_label).strip()
+        if os.path.isabs(out_dir_label):
+            try:
+                os.makedirs(out_dir_label, exist_ok=True)
+            except Exception:
+                pass
+        if not (os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label)):
+            return jsonify({'ok': False, 'error': 'Vui lòng chọn thư mục lưu kết quả'}), 400
         
         # CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo ảnh Veo3
         # Veo3 cần kết nối qua CDP để điều khiển browser
         from utils.control_profile import init_global_browser
         try:
             print("[Veo3 API] 🚀 Đảm bảo Chrome đã khởi động với CDP...")
-            init_global_browser(provider='grok', kind='default')
-            print("[Veo3 API] ✅ Chrome đã sẵn sàng")
+            init_global_browser(provider='Veo3', kind='default')
+            print("[Veo3 API] ✅ Chrome đã sẵn sàng (Google Flow)")
         except Exception as e:
             return jsonify({'ok': False, 'error': f'Không thể khởi động Chrome với CDP: {str(e)}'}), 500
 
@@ -2317,14 +2387,19 @@ def create_images_veo3_handler():
                     cancel_event=cancel_event,
                 )
             finally:
-                # Cleanup temp reference images
                 for task in runner_tasks:
-                    ref_path = task.get('reference_image')
-                    if ref_path and os.path.exists(ref_path):
+                    for ref_path in (task.get('reference_images') or []):
                         try:
-                            os.remove(ref_path)
+                            if ref_path and os.path.exists(ref_path):
+                                os.remove(ref_path)
                         except Exception:
                             pass
+                    ref_path = task.get('reference_image')
+                    try:
+                        if ref_path and os.path.exists(ref_path):
+                            os.remove(ref_path)
+                    except Exception:
+                        pass
 
         # Run in new event loop (Veo3 tự quản lý browser)
         def _run_in_thread():
@@ -2346,6 +2421,7 @@ def create_images_veo3_handler():
                 'thread': thread,
                 'cancel_event': cancel_event,
                 'tasks': runner_tasks,
+                'mapping': mapping,
             }
 
         return jsonify({
@@ -2362,137 +2438,130 @@ def create_images_veo3_handler():
 
 @app.route('/create_videos_veo3', methods=['POST'])
 def create_videos_veo3_handler():
-    """Tạo video qua Veo3 API - tương tự create_videos_batch nhưng dùng Veo3"""
+    """Tạo video qua Veo3 API - format task giống create_videos_batch (Grok)."""
     try:
         payload = request.get_json(silent=True) or {}
         out_dir_label = str(payload.get('out_dir_label') or '')
+        out_dir_label = out_dir_label.replace('\u200e', '').replace('\u200f', '').replace('\ufeff', '')
+        out_dir_label = out_dir_label.strip().strip('"').strip("'").strip()
+        try:
+            out_dir_label = os.path.normpath(out_dir_label)
+        except Exception:
+            out_dir_label = str(out_dir_label).strip()
+
         max_tabs = payload.get('max_tabs', 2)
-        ratio = str(payload.get('ratio') or '16:9').strip()
-        duration = str(payload.get('duration') or '6s').strip()
+        ratio = str(payload.get('ratio') or '9:16').strip()
+        duration = str(payload.get('duration') or payload.get('grok_duration') or '6s').strip()
         account_type = str(payload.get('account_type') or 'ULTRA').strip()
         tasks = payload.get('tasks')
         profile_name = payload.get('profile_name')
-        
-        # Veo3-specific parameters
+        music_url = str(payload.get('music_url') or '').strip()
+        music_name = str(payload.get('music_name') or '').strip()
+        music_path = _music_url_to_abs_path(music_url)
+
         veo3_video_quality = str(payload.get('veo3_video_quality') or 'fast').strip()
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
 
-        # 🔥 CRITICAL: Đảm bảo Chrome đã được khởi động với CDP trước khi tạo video Veo3
-        # Veo3 cần kết nối qua CDP để điều khiển browser
+        try:
+            for t in tasks:
+                scenes = (t or {}).get('scenes')
+                if not isinstance(scenes, list) or len(scenes) == 0:
+                    continue
+                for idx, scene in enumerate(scenes):
+                    prompt = str((scene or {}).get('prompt') or '').strip()
+                    img_data = str((scene or {}).get('image') or '').strip()
+                    if not prompt or not img_data:
+                        return jsonify({'ok': False, 'error': f'Thiếu prompt/ảnh ở cảnh {idx + 1}'}), 400
+        except Exception:
+            pass
+
+        if os.path.isabs(out_dir_label):
+            try:
+                os.makedirs(out_dir_label, exist_ok=True)
+            except Exception:
+                pass
+        if not (os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label)):
+            return jsonify({'ok': False, 'error': 'Vui lòng chọn thư mục lưu kết quả'}), 400
+
         from utils.control_profile import init_global_browser
         try:
             print("[Veo3 Video API] 🚀 Đảm bảo Chrome đã khởi động với CDP...")
-            init_global_browser(provider='grok', kind='default')
-            print("[Veo3 Video API] ✅ Chrome đã sẵn sàng")
+            init_global_browser(provider='Veo3', kind='default')
+            print("[Veo3 Video API] ✅ Chrome đã sẵn sàng (Google Flow)")
         except Exception as e:
             return jsonify({'ok': False, 'error': f'Không thể khởi động Chrome với CDP: {str(e)}'}), 500
 
-        # Xác định thư mục output
-        if os.path.isabs(out_dir_label) and os.path.isdir(out_dir_label):
-            out_folder_abs = out_dir_label
-            is_custom_dir = True
-        else:
-            folder = _safe_folder_name(out_dir_label)
-            batch_id = uuid.uuid4().hex[:8]
-            out_folder_rel = os.path.join(folder, batch_id)
-            out_folder_abs = os.path.join(GENERATED_DIR, out_folder_rel)
-            os.makedirs(out_folder_abs, exist_ok=True)
-            is_custom_dir = False
+        batch_id = uuid.uuid4().hex[:8]
+        out_folder_abs = os.path.join(out_dir_label, f'video_batch_{batch_id}')
+        os.makedirs(out_folder_abs, exist_ok=True)
 
         runner_tasks = []
         mapping = []
 
         for t in tasks:
             form_id = str((t or {}).get('form_id') or '').strip()
-            scenes = t.get('scenes', [])
+            scenes = (t or {}).get('scenes')
+            effect_key = str((t or {}).get('effect_key') or '').strip()
 
-            if not form_id or not isinstance(scenes, list) or len(scenes) == 0:
+            if not form_id:
+                continue
+            if not isinstance(scenes, list) or len(scenes) == 0:
                 continue
 
-            # Veo3 video: mỗi scene = 1 video riêng
-            for idx, scene in enumerate(scenes):
-                image_data = str((scene or {}).get('image') or '')
-                prompt = str((scene or {}).get('prompt') or '')
-
-                if not image_data or not prompt:
+            valid_scenes = []
+            for scene in scenes:
+                prompt = str((scene or {}).get('prompt') or '').strip()
+                image_data = str((scene or {}).get('image') or '').strip()
+                if not prompt or not image_data:
                     continue
+                valid_scenes.append({'prompt': prompt, 'image': image_data})
 
-                out_name = f'{form_id}_scene{idx}_{uuid.uuid4().hex[:4]}.mp4'
-                out_abs = os.path.join(out_folder_abs, out_name)
+            if len(valid_scenes) == 0:
+                continue
 
-                # Tạo task tracking
-                try:
-                    from utils.control_script import create_video_task
-                    task_id = create_video_task(f'Tạo video Veo3: {out_name}', 'Veo3')
-                except Exception:
-                    task_id = ''
+            out_name = f'{form_id}_{uuid.uuid4().hex[:4]}.mp4'
+            merged_out = os.path.join(out_folder_abs, out_name)
+            clips_dir = os.path.join(out_folder_abs, f'{form_id}_scenes')
+            os.makedirs(clips_dir, exist_ok=True)
+            out_clips = [clips_dir for _ in range(len(valid_scenes))]
 
-                if task_id:
-                    mapping.append({'form_id': form_id, 'scene_idx': idx, 'task_id': task_id})
-
-                # Decode image data và lưu vào file tạm
-                image_path = None
-                if image_data.startswith('data:image'):
-                    try:
-                        import base64
-                        b64_part = image_data.split(',', 1)[1]
-                        img_bytes = base64.b64decode(b64_part)
-                        
-                        temp_img = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-                        temp_img.write(img_bytes)
-                        temp_img.close()
-                        image_path = temp_img.name
-                    except Exception as e:
-                        print(f"[Veo3] ⚠️ Lỗi xử lý image: {e}")
-                        continue
-
-                runner_tasks.append({
-                    'form_id': form_id,
-                    'scene_idx': idx,
-                    'task_id': task_id,
-                    'image_path': image_path,
-                    'prompt': prompt,
-                    'out': out_abs,
-                    'ratio': ratio,
-                    'duration': duration,
-                    'quality': veo3_video_quality,
-                    'account_type': account_type,
-                    'profile_name': profile_name or t.get('profile_name'),
-                    'is_custom_dir': is_custom_dir,
-                    'out_name': out_name,
-                    'out_folder_rel': out_folder_rel if not is_custom_dir else None
-                })
+            from utils.control_script import create_video_task
+            task_id = create_video_task(f'Tạo video Veo3: {out_name}', 'Veo3')
+            mapping.append({'form_id': form_id, 'task_id': task_id})
+            runner_tasks.append({
+                'task_id': task_id,
+                'form_id': form_id,
+                'scenes': valid_scenes,
+                'out_clips': out_clips,
+                'merged_out': merged_out,
+                'effect_key': effect_key,
+                'ratio': ratio,
+                'music_url': music_url,
+                'music_name': music_name,
+                'music_path': music_path,
+                'profile_name': profile_name or (t or {}).get('profile_name'),
+                'account_type': account_type,
+            })
 
         if len(runner_tasks) == 0:
-            return jsonify({'ok': False, 'error': 'No valid tasks'}), 400
+            return jsonify({'ok': False, 'error': 'No valid tasks (thiếu prompt hoặc ảnh cảnh)'}), 400
 
-        # ===== SỬ DỤNG MODULE MỚI CÓ GHÉP VIDEO FFMPEG (GIỐNG 100% BÊN GROK) =====
         from utils.control_creat_video_veo3_batch import run_video_tasks_veo3_batch
 
         cancel_event = threading.Event()
 
         async def _run_veo3_video_async():
-            try:
-                await run_video_tasks_veo3_batch(
-                    context={},
-                    provider='veo3',
-                    tasks=runner_tasks,
-                    max_tabs=max_tabs,
-                    cancel_event=cancel_event,
-                    veo_duration=duration,
-                    veo_quality=veo3_video_quality,
-                )
-            finally:
-                # Cleanup temp image files
-                for task in runner_tasks:
-                    img_path = task.get('image_path')
-                    if img_path and os.path.exists(img_path):
-                        try:
-                            os.remove(img_path)
-                        except Exception:
-                            pass
+            await run_video_tasks_veo3_batch(
+                context={},
+                provider='veo3',
+                tasks=runner_tasks,
+                max_tabs=max_tabs,
+                cancel_event=cancel_event,
+                veo_duration=duration,
+                veo_quality=veo3_video_quality,
+            )
 
         def _run_in_thread():
             loop = asyncio.new_event_loop()
@@ -2512,6 +2581,8 @@ def create_videos_veo3_handler():
                 'thread': thread,
                 'cancel_event': cancel_event,
                 'tasks': runner_tasks,
+                'mapping': mapping,
+                'out_folder_abs': out_folder_abs,
             }
 
         return jsonify({
@@ -2539,7 +2610,7 @@ if __name__ == "__main__":
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.settimeout(0.2)
-            if s.connect_ex(("127.0.0.1", 5000)) == 0:
+            if s.connect_ex(("127.0.0.1", 5555)) == 0:
                 try:
                     open_browser()
                 except Exception:
@@ -2557,6 +2628,7 @@ if __name__ == "__main__":
     lic_svc.ensure_license(use_gui=True)
 
     threading.Timer(1.0, open_browser).start()
-    _start_client_watchdog(timeout_sec=120.0, check_interval=5.0)
+    if is_running_as_exe():
+        _start_client_watchdog(timeout_sec=120.0, check_interval=5.0)
 
-    app.run(host="127.0.0.1", port=5000, debug=(not is_running_as_exe()), use_reloader=False, threaded=True)
+    app.run(host="127.0.0.1", port=5555, debug=(not is_running_as_exe()), use_reloader=False, threaded=True)

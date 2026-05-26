@@ -12,6 +12,10 @@ function _safeJsonParse(s, fallback) {
     }
 }
 
+function _isVeo3Provider(provider) {
+    return String(provider || '').trim().toLowerCase().includes('veo3');
+}
+
 function _throttle(fn, waitMs) {
     let t = null;
     let lastArgs = null;
@@ -245,7 +249,7 @@ function _createImageForm({ characterSrc, characterName }) {
 
             // Read Veo3 image model if provider is Veo3
             let veo3_image_model = null;
-            if (provider === 'Veo3') {
+            if (_isVeo3Provider(provider)) {
                 const veo3ModelSelect = document.getElementById('veo3-image-model');
                 if (veo3ModelSelect) {
                     veo3_image_model = String(veo3ModelSelect.value || '🍌 Nano Banana Pro').trim();
@@ -295,7 +299,7 @@ function _createImageForm({ characterSrc, characterName }) {
                 }
 
                 // Route to correct endpoint based on provider
-                const endpoint = (provider === 'Veo3' || provider === 'Veo3 (Google)')
+                const endpoint = _isVeo3Provider(provider)
                     ? '/create_images_veo3'
                     : '/create_images_batch_start';
 
@@ -819,10 +823,10 @@ function initTaoAnhPage() {
 
             // Read Veo3 image model if provider is Veo3
             let veo3_image_model = null;
-            if (provider === 'Veo3') {
+            if (_isVeo3Provider(provider)) {
                 const veo3ModelSelect = document.getElementById('veo3-image-model');
                 if (veo3ModelSelect) {
-                    veo3_image_model = String(veo3ModelSelect.value || 'Nano Banana pro').trim();
+                    veo3_image_model = String(veo3ModelSelect.value || '🍌 Nano Banana Pro').trim();
                 }
             }
 
@@ -876,7 +880,7 @@ function initTaoAnhPage() {
                 }
 
                 // Route to correct endpoint based on provider
-                const endpoint = (provider === 'Veo3' || provider === 'Veo3 (Google)')
+                const endpoint = _isVeo3Provider(provider)
                     ? '/create_images_veo3'
                     : '/create_images_batch_start';
 

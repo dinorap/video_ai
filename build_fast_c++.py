@@ -370,7 +370,7 @@ def copy_resources() -> None:
 
 1. Giai nen toan bo thu muc
 2. Chay {APP_NAME}.exe
-3. Mo http://127.0.0.1:5000
+3. Mo http://127.0.0.1:5555
 
 tools/ffmpeg/bin — da kem san (khong can cai ffmpeg)
 Can Google Chrome (cai tren Windows) de tao video Grok/Veo3

@@ -419,6 +419,41 @@ function _updatePromptsList(videoIndex) {
     });
 }
 
+/** Sau F5: dataset.scenes đã có nhưng DOM prompt chưa được vẽ lại. */
+async function _restoreVideoRowPrompts(videoIndex) {
+    const idx = parseInt(String(videoIndex || ''), 10) || 0;
+    if (idx <= 0) return;
+
+    const rowEl = document.getElementById(`video-row-${idx}`);
+    if (!rowEl) return;
+
+    let hasScenes = false;
+    const scenesRaw = String(rowEl.dataset.scenes || '').trim();
+    if (scenesRaw) {
+        try {
+            const scenes = JSON.parse(scenesRaw);
+            hasScenes = Array.isArray(scenes) && scenes.length > 0;
+        } catch (e) { }
+    }
+
+    if (!hasScenes) {
+        const scriptName = String(rowEl.dataset.scriptName || '').trim();
+        if (scriptName && scriptName !== 'None') {
+            try {
+                const res = await fetch(`/load_script?name=${encodeURIComponent(scriptName)}`);
+                const body = await res.json().catch(() => ({}));
+                if (res.ok && body.ok && Array.isArray(body.scenes) && body.scenes.length > 0) {
+                    rowEl.dataset.scenes = JSON.stringify(body.scenes);
+                    hasScenes = true;
+                }
+            } catch (e) { }
+        }
+    }
+
+    _updatePromptsList(idx);
+    _updateScriptBadge(idx);
+}
+
 function _setVideoProgress(videoIndex, percent, sceneIndex, totalScenes) {
     // Progress bar removed — only show scene status
     _setVideoSceneStatus(videoIndex, sceneIndex && totalScenes ? `Tạo cảnh ${sceneIndex}/${totalScenes}` : '');
@@ -802,6 +837,8 @@ function _createVideoRow(index, defaultImage, titleText) {
                     });
                     rowEl.dataset.scenes = JSON.stringify(scenes);
                     _updatePromptsList(index);
+                    _updateScriptBadge(index);
+                    _persistTaoVideoStateNow();
                 }
 
                 modal.style.display = 'none';
@@ -1043,6 +1080,7 @@ function initTaoVideoPage() {
                 rows.sort((a, b) => (parseInt(String(a.videoIndex || 0), 10) || 0) - (parseInt(String(b.videoIndex || 0), 10) || 0));
             } catch (e) { }
 
+            const restoredRows = [];
             rows.forEach((it) => {
                 const idx = parseInt(String(it.videoIndex || ''), 10) || 0;
                 if (idx <= 0) return;
@@ -1061,6 +1099,7 @@ function initTaoVideoPage() {
                 } catch (e) { }
 
                 displayArea.appendChild(row);
+                restoredRows.push(idx);
 
                 try {
                     if (row.dataset.resultUrl) {
@@ -1087,6 +1126,8 @@ function initTaoVideoPage() {
                     }
                 } catch (e) { }
             });
+
+            void Promise.all(restoredRows.map((idx) => _restoreVideoRowPrompts(idx))).catch(() => { });
         }
     } catch (e) { }
 
