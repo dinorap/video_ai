@@ -395,6 +395,23 @@
     </div>
 </div>
 
+<!-- Overlay thêm nhiều cảnh (Clone Video) -->
+<div id="addManyScenesModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width: 560px; width: 92%;">
+        <div style="font-weight: 800; margin-bottom: 6px;">Thêm nhiều cảnh</div>
+        <p style="color: var(--text-soft, #aaa); font-size: 13px; margin-bottom: 10px; line-height: 1.5;">
+            Mỗi dòng trong ô bên dưới sẽ tạo thành một cảnh (prompt). Dòng trống sẽ bỏ qua.
+        </p>
+        <textarea id="addManyScenesInput" class="input-control" rows="12"
+            style="width: 100%; min-height: 220px; resize: vertical; font-size: 15px; line-height: 1.6;"
+            placeholder="mỗi dòng là một cảnh &#10;Đây xuống dòng là cảnh 2&#10;Đây là cảnh 3"></textarea>
+        <div class="modal-buttons" style="margin-top: 12px;">
+            <button id="addManyScenesConfirmBtn" type="button" class="modal-confirm">Tạo</button>
+            <button id="addManyScenesCancelBtn" type="button" class="modal-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
 <!-- Overlay xóa cảnh -->
 <div id="deleteSceneModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">

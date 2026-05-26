@@ -1,0 +1,17 @@
+[
+  {
+    "scene": 1,
+    "prompt": "xin chào",
+    "audio": ""
+  },
+  {
+    "scene": 2,
+    "prompt": "chào em",
+    "audio": ""
+  },
+  {
+    "scene": 3,
+    "prompt": "anh là",
+    "audio": ""
+  }
+]

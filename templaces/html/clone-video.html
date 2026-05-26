@@ -81,8 +81,13 @@
                     <img class="panel-icon" src="/ico/paste.png" alt="">
                     <h2>Kịch bản</h2>
                 </div>
-                <button type="button" id="addSceneBtn" class="btn btn-settings compact-btn">Thêm</button>
+                <div class="clone-script-actions">
+                    <button type="button" id="addSceneBtn" class="btn btn-settings compact-btn">Thêm</button>
+                    <button type="button" id="addManyScenesBtn" class="btn btn-preview compact-btn">Thêm nhiều</button>
+                    <button type="button" id="importScenesBtn" class="btn btn-preview compact-btn">Import file</button>
+                </div>
             </div>
+            <input type="file" id="importScenesFileInput" accept=".txt,.md,.csv,.docx,.doc" style="display:none;" />
             <div id="sceneContainer" class="scene-container">
                 <!-- Scenes will be rendered here -->
             </div>

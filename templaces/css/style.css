@@ -979,6 +979,13 @@ header>div {
     gap            : 12px;
 }
 
+.clone-script-actions {
+    display    : flex;
+    align-items: center;
+    gap        : 8px;
+    flex-shrink: 0;
+}
+
 .compact-btn {
     min-height: 34px;
     padding   : 7px 14px;

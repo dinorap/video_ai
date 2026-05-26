@@ -202,6 +202,102 @@ function addScene() {
     renderScenes(currentScriptData);
 }
 
+function _parseLinesToScenePrompts(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+}
+
+function addManyScenesFromText(text) {
+    const prompts = _parseLinesToScenePrompts(text);
+    if (prompts.length === 0) {
+        return 0;
+    }
+    prompts.forEach((prompt) => {
+        currentScriptData.push({
+            scene: currentScriptData.length + 1,
+            prompt,
+            audio: '',
+        });
+    });
+    currentScriptData.forEach((scene, index) => {
+        scene.scene = index + 1;
+    });
+    renderScenes(currentScriptData);
+    return prompts.length;
+}
+
+function _readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('Không thể đọc file'));
+            reader.readAsText(file);
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+function _readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error('Không thể đọc file'));
+            reader.readAsArrayBuffer(file);
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+async function importScenesFromFile(file) {
+    const f = file;
+    if (!f) return 0;
+    const name = String(f.name || '').toLowerCase();
+    const ext = name.includes('.') ? name.split('.').pop() : '';
+
+    // Word .doc (binary) not supported reliably in browser
+    if (ext === 'doc') {
+        alert('File .doc (Word đời cũ) chưa hỗ trợ. Vui lòng lưu lại thành .docx hoặc .txt.');
+        return 0;
+    }
+
+    let text = '';
+    if (ext === 'docx') {
+        if (!window.mammoth || typeof window.mammoth.extractRawText !== 'function') {
+            alert('Thiếu thư viện đọc .docx. Hãy F5 lại trang hoặc kiểm tra kết nối internet.');
+            return 0;
+        }
+        const buf = await _readFileAsArrayBuffer(f);
+        const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
+        text = String((result && result.value) ? result.value : '').trim();
+    } else {
+        // txt / md / csv ...
+        text = String(await _readFileAsText(f) || '').trim();
+    }
+
+    const count = addManyScenesFromText(text);
+    return count;
+}
+
+function showAddManyScenesModal() {
+    const modal = document.getElementById('addManyScenesModal');
+    const input = document.getElementById('addManyScenesInput');
+    if (!modal || !input) return;
+    input.value = '';
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function closeAddManyScenesModal() {
+    const modal = document.getElementById('addManyScenesModal');
+    if (modal) modal.style.display = 'none';
+}
+
 function showSaveScriptModal() {
     const modal = document.getElementById('saveScriptModal');
     const input = document.getElementById('saveScriptNameInput');
@@ -735,6 +831,66 @@ function initCloneVideoPage() {
     if (addSceneBtn) {
         addSceneBtn.onclick = () => {
             addScene();
+        };
+    }
+
+    const addManyScenesBtn = document.getElementById('addManyScenesBtn');
+    const addManyScenesConfirmBtn = document.getElementById('addManyScenesConfirmBtn');
+    const addManyScenesCancelBtn = document.getElementById('addManyScenesCancelBtn');
+    const addManyScenesModal = document.getElementById('addManyScenesModal');
+    const addManyScenesInput = document.getElementById('addManyScenesInput');
+
+    if (addManyScenesBtn) {
+        addManyScenesBtn.onclick = () => showAddManyScenesModal();
+    }
+    if (addManyScenesConfirmBtn && addManyScenesInput) {
+        addManyScenesConfirmBtn.onclick = () => {
+            const count = addManyScenesFromText(addManyScenesInput.value);
+            if (count === 0) {
+                alert('Vui lòng nhập ít nhất một dòng (mỗi dòng = một cảnh).');
+                return;
+            }
+            closeAddManyScenesModal();
+            if (typeof showSuccessOverlay === 'function') {
+                showSuccessOverlay(`Đã tạo ${count} cảnh`);
+            }
+        };
+    }
+    if (addManyScenesCancelBtn) {
+        addManyScenesCancelBtn.onclick = () => closeAddManyScenesModal();
+    }
+    if (addManyScenesModal) {
+        addManyScenesModal.onclick = (e) => {
+            if (e && e.target === addManyScenesModal) closeAddManyScenesModal();
+        };
+    }
+
+    const importScenesBtn = document.getElementById('importScenesBtn');
+    const importScenesFileInput = document.getElementById('importScenesFileInput');
+    if (importScenesBtn && importScenesFileInput) {
+        importScenesBtn.onclick = () => {
+            try {
+                importScenesFileInput.value = '';
+            } catch (_) { }
+            importScenesFileInput.click();
+        };
+
+        importScenesFileInput.onchange = async function () {
+            const file = this.files && this.files[0] ? this.files[0] : null;
+            if (!file) return;
+            try {
+                const count = await importScenesFromFile(file);
+                if (count <= 0) {
+                    alert('Không tìm thấy dòng nào hợp lệ (mỗi dòng = 1 cảnh).');
+                    return;
+                }
+                if (typeof showSuccessOverlay === 'function') {
+                    showSuccessOverlay(`Đã import ${count} cảnh từ file`);
+                }
+            } catch (e) {
+                console.error('Import scenes error:', e);
+                alert('Import thất bại: ' + (e && e.message ? e.message : String(e)));
+            }
         };
     }
 
