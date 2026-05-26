@@ -188,6 +188,22 @@
     </div>
 </div>
 
+<!-- Thông báo lỗi server Veo3 (500, 403, 429) -->
+<div id="veo3ServerErrorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box notification-modal notification-error" style="max-width: 520px;">
+        <div class="notification-icon">
+            <i class="fas fa-server"></i>
+        </div>
+        <div class="notification-title" id="veo3ServerErrorTitle">Lỗi server Veo3</div>
+        <div class="notification-message" id="veo3ServerErrorMessage">
+            <p>Đã xảy ra lỗi khi kết nối đến server Veo3.</p>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" onclick="closeVeo3ServerErrorModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <!-- Hướng dẫn nhanh khi mới bắt đầu -->
 <div id="quickGuideModal" class="modal-overlay" style="display:none;">
     <div class="help-guide-box" style="max-width: 720px;">

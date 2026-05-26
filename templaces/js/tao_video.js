@@ -1696,12 +1696,35 @@ function initTaoVideoPage() {
                 if (status === 'failed') {
                     const err = String(body.error || 'Lỗi');
                     _setVideoSceneStatus(videoIndex, `Lỗi: ${err}`);
-                    if (
-                        err.includes('giới hạn tạo video')
-                        || err.includes('tài khoản Grok')
-                    ) {
+                    
+                    // Kiểm tra các loại lỗi cụ thể
+                    const isGrokLimit = err.includes('giới hạn tạo video') || err.includes('tài khoản Grok');
+                    const isVeo3Error = err.includes('HTTP 500') || err.includes('HTTP 403') || err.includes('HTTP 429') || err.includes('Internal Error') || err.includes('Forbidden') || err.includes('Rate Limit');
+                    
+                    if (isGrokLimit) {
                         if (typeof window.showGrokLimitModal === 'function') {
                             window.showGrokLimitModal();
+                        } else {
+                            alert(err);
+                        }
+                    } else if (isVeo3Error) {
+                        // Hiển thị modal lỗi server Veo3
+                        let errorTitle = 'Lỗi server Veo3';
+                        let errorMessage = '<p>Đã xảy ra lỗi khi kết nối đến server Veo3.</p>';
+                        
+                        if (err.includes('HTTP 500')) {
+                            errorTitle = 'Lỗi 500 - Server Veo3 bận';
+                            errorMessage = `<p>${err}</p><p style="margin-top: 10px;"><strong>Hướng dẫn:</strong></p><ul style="margin: 10px 0 0 20px; text-align: left;"><li>Server Veo3 đang bận, vui lòng thử lại sau 1-2 phút</li><li>Nếu lỗi tiếp tục, có thể tài khoản đã đạt giới hạn</li></ul>`;
+                        } else if (err.includes('HTTP 403')) {
+                            errorTitle = 'Lỗi 403 - Không có quyền truy cập';
+                            errorMessage = `<p>${err}</p><p style="margin-top: 10px;"><strong>Hướng dẫn:</strong></p><ul style="margin: 10px 0 0 20px; text-align: left;"><li>Tài khoản có thể bị rate limit hoặc hết quyền truy cập</li><li>Thử đăng nhập lại tài khoản Veo3</li><li>Thử tạo lại sau vài phút</li></ul>`;
+                        } else if (err.includes('HTTP 429')) {
+                            errorTitle = 'Lỗi 429 - Quá nhiều yêu cầu';
+                            errorMessage = `<p>${err}</p><p style="margin-top: 10px;"><strong>Hướng dẫn:</strong></p><ul style="margin: 10px 0 0 20px; text-align: left;"><li>Bạn đã gửi quá nhiều yêu cầu</li><li>Vui lòng chờ 5-10 phút rồi thử lại</li><li>Giảm số tab chạy song song nếu cần</li></ul>`;
+                        }
+                        
+                        if (typeof window.showVeo3ServerErrorModal === 'function') {
+                            window.showVeo3ServerErrorModal(errorTitle, errorMessage);
                         } else {
                             alert(err);
                         }
