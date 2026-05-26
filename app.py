@@ -594,8 +594,8 @@ def verify_log_password():
         payload = request.get_json(silent=True) or {}
         password = str(payload.get('password') or '').strip()
         
-        # Pre-computed SHA256 hash (không lưu password gốc)
-        correct_hash = 'c5fe25896e49ddfe996db7508cf00534edfc836ff1e8e7ddce9f908c2d44b83c'
+      
+        correct_hash = '0554a5df02ee12f1ae36a51caaef34a31deb9458a48b629da554a2b322466f4a'
         input_hash = hashlib.sha256(password.encode()).hexdigest()
         
         if input_hash == correct_hash:

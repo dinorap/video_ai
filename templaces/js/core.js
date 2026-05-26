@@ -945,6 +945,7 @@ function toggleGrokDurationVisibility() {
     const durationContainer = document.getElementById('grok-duration-container');
     const veo3ImageModelContainer = document.getElementById('veo3-image-model-container');
     const veo3VideoQualityContainer = document.getElementById('veo3-video-quality-container');
+    const maxTabsContainer = document.getElementById('max-tabs-container');
     const qualitySelect = document.getElementById('video-quality-select');
 
     if (!modelSelect || !durationContainer) return;
@@ -962,6 +963,11 @@ function toggleGrokDurationVisibility() {
     }
     if (veo3VideoQualityContainer) {
         veo3VideoQualityContainer.style.display = isVeo3 ? 'block' : 'none';
+    }
+
+    // Veo3 không dùng số tab song song (chạy theo luồng riêng)
+    if (maxTabsContainer) {
+        maxTabsContainer.style.display = isVeo3 ? 'none' : 'block';
     }
 
     // Update quality options based on model
@@ -995,8 +1001,8 @@ function toggleGrokDurationVisibility() {
             option720.textContent = '720p';
             qualitySelect.appendChild(option720);
 
-            // Default to 1080p for Veo3
-            qualitySelect.value = '1080p';
+            // Default to 720p for Veo3
+            qualitySelect.value = '720p';
         } else {
             // Other models support 1080p and 720p
             const option1080 = document.createElement('option');

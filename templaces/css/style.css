@@ -26,17 +26,17 @@
 }
 
 body.theme-hacker {
-    --accent       : #00e676;
-    --accent-2     : #5dffb1;
-    --accent-soft  : rgba(0, 230, 118, 0.14);
-    --accent-shadow: rgba(0, 230, 118, 0.35);
-    --border-strong: rgba(0, 230, 118, 0.55);
-    --gradient-btn : linear-gradient(135deg, rgba(0, 230, 118, 0.94), rgba(0, 143, 78, 0.95));
-    --bg-dark      : radial-gradient(circle at 78% 18%, rgba(0, 230, 118, 0.10), transparent 34%), linear-gradient(135deg, #050b12 0%, #071520 46%, #020408 100%);
-    --sidebar-bg   : rgba(5, 12, 20, 0.84);
-    --card-bg      : rgba(7, 17, 28, 0.74);
+    --accent        : #00e676;
+    --accent-2      : #5dffb1;
+    --accent-soft   : rgba(0, 230, 118, 0.14);
+    --accent-shadow : rgba(0, 230, 118, 0.35);
+    --border-strong : rgba(0, 230, 118, 0.55);
+    --gradient-btn  : linear-gradient(135deg, rgba(0, 230, 118, 0.94), rgba(0, 143, 78, 0.95));
+    --bg-dark       : radial-gradient(circle at 78% 18%, rgba(0, 230, 118, 0.10), transparent 34%), linear-gradient(135deg, #050b12 0%, #071520 46%, #020408 100%);
+    --sidebar-bg    : rgba(5, 12, 20, 0.84);
+    --card-bg       : rgba(7, 17, 28, 0.74);
     --card-bg-strong: rgba(7, 14, 24, 0.92);
-    --input-bg     : rgba(1, 8, 16, 0.68);
+    --input-bg      : rgba(1, 8, 16, 0.68);
 }
 
 body.theme-tech {
@@ -204,19 +204,19 @@ body::before {
 }
 
 .license-info-card .license-meta {
-    margin-top: 8px;
-    font-size : 12px;
+    margin-top : 8px;
+    font-size  : 12px;
     line-height: 1.45;
-    color     : var(--text-soft);
+    color      : var(--text-soft);
 }
 
 .license-status-ok {
-    color: #4CAF50;
+    color      : #4CAF50;
     font-weight: 700;
 }
 
 .license-status-warn {
-    color: #f44336;
+    color      : #f44336;
     font-weight: 600;
 }
 
@@ -1121,34 +1121,34 @@ header>div {
 
 .notification-modal {
     text-align: center;
-    max-width: 420px;
+    max-width : 420px;
 }
 
 .notification-icon {
-    font-size: 48px;
+    font-size    : 48px;
     margin-bottom: 12px;
 }
 
 .notification-error .notification-icon {
-    color: var(--danger);
+    color      : var(--danger);
     text-shadow: 0 0 20px rgba(255, 52, 52, 0.5);
 }
 
 .notification-warning .notification-icon {
-    color: var(--warning);
+    color      : var(--warning);
     text-shadow: 0 0 20px rgba(255, 212, 0, 0.5);
 }
 
 .notification-success .notification-icon {
-    color: var(--success);
+    color      : var(--success);
     text-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
 }
 
 .notification-title {
-    font-size: 20px;
-    font-weight: 900;
+    font-size    : 20px;
+    font-weight  : 900;
     margin-bottom: 12px;
-    color: var(--text-main);
+    color        : var(--text-main);
 }
 
 .notification-error .notification-title {
@@ -1164,14 +1164,14 @@ header>div {
 }
 
 .notification-message {
-    font-size: 14px;
+    font-size  : 14px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: left;
+    color      : rgba(255, 255, 255, 0.85);
+    text-align : left;
 }
 
 .notification-message ul {
-    margin: 8px 0 0 0;
+    margin      : 8px 0 0 0;
     padding-left: 20px;
 }
 
@@ -1181,19 +1181,20 @@ header>div {
 
 /* Step number badge */
 .step-number {
-    display: inline-flex;
-    align-items: center;
+    display        : inline-flex;
+    align-items    : center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 50%;
-    font-size: 14px;
-    font-weight: 900;
-    margin-right: 8px;
-    box-shadow: 0 0 12px var(--accent-shadow);
+    width          : 26px;
+    height         : 26px;
+    background     : var(--accent);
+    color          : #fff;
+    border-radius  : 50%;
+    font-size      : 14px;
+    font-weight    : 900;
+    margin-right   : 8px;
+    box-shadow     : 0 0 12px var(--accent-shadow);
 }
+
 /* ============================================================================
    UPDATE BUTTON - Nút cập nhật phiên bản mới
    ============================================================================ */
@@ -1367,14 +1368,14 @@ body.theme-princess .btn-update:hover {
 
 /* INTRO SPLASH */
 #intro-splash {
-    position        : fixed;
+    position       : fixed;
     inset          : 0;
-    background      : #000;
-    z-index         : 100000;
-    display         : flex;
-    align-items     : center;
-    justify-content : center;
-    cursor          : pointer;
+    background     : #000;
+    z-index        : 100000;
+    display        : flex;
+    align-items    : center;
+    justify-content: center;
+    cursor         : pointer;
 }
 
 #intro-splash video {
@@ -1386,7 +1387,7 @@ body.theme-princess .btn-update:hover {
 }
 
 .intro-overlay {
-    position        : fixed;
+    position       : fixed;
     inset          : 0;
     background     : rgba(0, 0, 0, 0.3);
     display        : flex;
@@ -1397,53 +1398,53 @@ body.theme-princess .btn-update:hover {
 }
 
 .intro-content {
-    display        : flex;
-    flex-direction : column;
-    align-items    : center;
-    gap             : 8px;
-    text-align     : center;
-    max-width      : 900px;
-    padding        : 60px;
+    display       : flex;
+    flex-direction: column;
+    align-items   : center;
+    gap           : 8px;
+    text-align    : center;
+    max-width     : 900px;
+    padding       : 60px;
 }
 
 .intro-line {
-    font-family    : 'Georgia', 'Times New Roman', serif;
+    font-family   : 'Georgia', 'Times New Roman', serif;
     font-style    : normal;
     color         : #ffffff;
-    text-shadow   : 0 0 40px rgba(255,255,255,0.5), 0 0 80px rgba(255,255,255,0.25), 2px 4px 20px rgba(0,0,0,0.4);
+    text-shadow   : 0 0 40px rgba(255, 255, 255, 0.5), 0 0 80px rgba(255, 255, 255, 0.25), 2px 4px 20px rgba(0, 0, 0, 0.4);
     letter-spacing: 0.05em;
     line-height   : 1.15;
 }
 
 .intro-line-1 {
-    font-size    : clamp(64px, 9vw, 120px);
-    font-weight  : 300;
-    font-style   : normal;
-    font-family  : 'Arial Black', 'Impact', sans-serif;
+    font-size     : clamp(64px, 9vw, 120px);
+    font-weight   : 300;
+    font-style    : normal;
+    font-family   : 'Arial Black', 'Impact', sans-serif;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    text-shadow  : 0 0 60px rgba(255,255,255,0.7), 0 0 120px rgba(255,255,255,0.4);
+    text-shadow   : 0 0 60px rgba(255, 255, 255, 0.7), 0 0 120px rgba(255, 255, 255, 0.4);
 }
 
 .intro-line-2 {
-    font-size    : clamp(36px, 5vw, 64px);
-    font-weight  : 200;
-    color        : rgba(255, 255, 255, 0.7);
+    font-size  : clamp(36px, 5vw, 64px);
+    font-weight: 200;
+    color      : rgba(255, 255, 255, 0.7);
 }
 
 .intro-line-3 {
-    font-size    : clamp(56px, 8vw, 100px);
-    font-weight  : 700;
+    font-size     : clamp(56px, 8vw, 100px);
+    font-weight   : 700;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    text-shadow  : 0 0 50px rgba(255,255,255,0.6), 0 0 100px rgba(255,255,255,0.3);
+    text-shadow   : 0 0 50px rgba(255, 255, 255, 0.6), 0 0 100px rgba(255, 255, 255, 0.3);
 }
 
 .intro-divider {
-    width        : 120px;
-    height       : 1px;
-    background   : linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
-    margin       : 24px auto;
+    width     : 120px;
+    height    : 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+    margin    : 24px auto;
 }
 
 .intro-line-4 {
@@ -1476,26 +1477,33 @@ body.theme-princess .btn-update:hover {
     color         : rgba(255, 255, 255, 1);
     letter-spacing: normal;
     word-spacing  : normal;
-    text-shadow   : 0 0 30px rgba(255,255,255,0.6), 0 0 60px rgba(255,255,255,0.3);
+    text-shadow   : 0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.3);
 }
 
 .intro-skip {
-    position     : absolute;
-    bottom      : 60px;
-    left        : 50%;
-    transform    : translateX(-50%);
-    font-family  : 'Arial', sans-serif;
-    font-size    : 14px;
-    font-weight  : 400;
-    font-style   : normal;
-    color        : rgba(255, 255, 255, 0.45);
+    position      : absolute;
+    bottom        : 60px;
+    left          : 50%;
+    transform     : translateX(-50%);
+    font-family   : 'Arial', sans-serif;
+    font-size     : 14px;
+    font-weight   : 400;
+    font-style    : normal;
+    color         : rgba(255, 255, 255, 0.45);
     letter-spacing: 0.15em;
-    animation    : skipBlink 2.5s ease-in-out infinite;
+    animation     : skipBlink 2.5s ease-in-out infinite;
 }
 
 @keyframes skipBlink {
-    0%, 100% { opacity: 0.25; }
-    50% { opacity: 0.8; }
+
+    0%,
+    100% {
+        opacity: 0.25;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
 }
 
 /* FIX: chống giãn chữ tiếng Việt trong intro */
@@ -1504,10 +1512,86 @@ body.theme-princess .btn-update:hover {
 #intro-splash .intro-line-6,
 #intro-splash .intro-line-7 {
     letter-spacing: 0 !important;
-    word-spacing: 0 !important;
-    font-family: Arial, Helvetica, sans-serif !important;
-    font-kerning: normal;
+    word-spacing  : 0 !important;
+    font-family   : Arial, Helvetica, sans-serif !important;
+    font-kerning  : normal;
     text-rendering: optimizeLegibility;
-    white-space: normal;
+    white-space   : normal;
     text-transform: none !important;
+}
+
+
+.log-toggle-inline {
+    display        : flex;
+    align-items    : center;
+    justify-content: space-between;
+
+    padding      : 12px 14px;
+    border-radius: 10px;
+
+    background: rgba(255, 255, 255, 0.05);
+    border    : 1px solid rgba(255, 255, 255, 0.08);
+
+    margin-bottom: 12px;
+}
+
+.log-toggle-left {
+    display       : flex;
+    flex-direction: column;
+}
+
+.log-toggle-title {
+    font-weight: 600;
+    font-size  : 14px;
+    display    : flex;
+    align-items: center;
+    gap        : 8px;
+}
+
+.log-toggle-desc {
+    font-size : 12px;
+    opacity   : 0.7;
+    margin-top: 4px;
+}
+
+.log-toggle-switch {
+    position: relative;
+    display : inline-block;
+    width   : 52px;
+    height  : 28px;
+}
+
+.log-toggle-switch input {
+    opacity: 0;
+    width  : 0;
+    height : 0;
+}
+
+.log-toggle-slider {
+    position     : absolute;
+    inset        : 0;
+    cursor       : pointer;
+    background   : #666;
+    transition   : 0.25s;
+    border-radius: 999px;
+}
+
+.log-toggle-slider::before {
+    content      : "";
+    position     : absolute;
+    height       : 22px;
+    width        : 22px;
+    left         : 3px;
+    top          : 3px;
+    background   : white;
+    transition   : 0.25s;
+    border-radius: 50%;
+}
+
+.log-toggle-switch input:checked+.log-toggle-slider {
+    background: #4ade80;
+}
+
+.log-toggle-switch input:checked+.log-toggle-slider::before {
+    transform: translateX(24px);
 }

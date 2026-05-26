@@ -62,8 +62,8 @@
             </button>
         </div>
 
-        <!-- Nút hướng dẫn nhanh -->
-      
+
+
 
         <div class="section-title"><img class="section-icon" src="/ico/people.png" alt=""> Quản lý tài khoản</div>
         <div class="group-box">
@@ -134,7 +134,7 @@
                 </select>
             </div>
 
-            <div>
+            <div id="max-tabs-container">
                 <span class="label">Số tab chạy song song</span>
                 <input class="input-control" id="max-tabs-input" type="number" min="1" max="10" value="5" />
             </div>
@@ -165,6 +165,11 @@
         </div>
         <!-- input ẩn dùng để chọn file nhạc / video thêm mới -->
         <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
+        <!-- Nút quản lý log (ẩn hiện log) -->
+        <button type="button" class="btn btn-settings" id="btn-log-settings"
+            style="width: 100%; margin: 8px 0 12px 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+            <i class="fas fa-terminal"></i> Quản lý Log
+        </button>
     </div>
 
     <div id="main-wrapper">

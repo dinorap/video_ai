@@ -4,5 +4,6 @@
   "API_KEY": "AIzaSyBITlonohRGGo9w-JEqf5eSOX2HISqg4q0",
   "cloneVideoModel": "gemini-2.5-flash",
   "cloneVideoApiKey": "AIzaSyCoHkAnNPQYFxp7QTL0Iv0b1lqU68QZPeY",
-  "CDP_PORT": 9222
+  "CDP_PORT": 9222,
+  "SUPPRESS_ALL_LOGS": true
 }

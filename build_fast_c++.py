@@ -91,6 +91,8 @@ INCLUDE_MODULES = [
     "utils.license_core.hwid",
     "utils.license_core.env_secure",
     "utils.license_core.gui",
+    "tkinter",
+    "customtkinter",
 ]
 
 BUILD_CONFIG_DIST = [
@@ -211,6 +213,7 @@ def run_nuitka_main() -> None:
         "nuitka",
         "--standalone",
         "--assume-yes-for-downloads",
+        "--enable-plugin=tk-inter",
         "--msvc=latest",
         f"--jobs={JOBS}",
         "--low-memory",
@@ -270,8 +273,26 @@ def run_nuitka_main() -> None:
         raise RuntimeError("Nuitka .dist folder not found under dist/")
 
     if DIST_DIR.exists():
-        shutil.rmtree(DIST_DIR)
+        try:
+            shutil.rmtree(DIST_DIR)
+        except OSError as exc:
+            raise RuntimeError(
+                f"Cannot remove {DIST_DIR}. Close {APP_NAME}.exe then rebuild. ({exc})"
+            ) from exc
     shutil.move(str(nuitka_dist), str(DIST_DIR))
+
+    # Nuitka đặt tên thư mục theo entry (app.dist) — gộp lên root nếu bị lồng
+    nested = DIST_DIR / "app.dist"
+    if nested.is_dir() and not (DIST_DIR / f"{APP_NAME}.exe").is_file():
+        for item in nested.iterdir():
+            dest = DIST_DIR / item.name
+            if dest.exists():
+                if dest.is_dir():
+                    shutil.rmtree(dest, ignore_errors=True)
+                else:
+                    dest.unlink()
+            shutil.move(str(item), str(dest))
+        shutil.rmtree(nested, ignore_errors=True)
 
     for exe in DIST_DIR.glob("*.exe"):
         target = DIST_DIR / f"{APP_NAME}.exe"
