@@ -149,6 +149,10 @@ function _applyExclusiveSceneRefs(block, slotUi, activeKey, src) {
         ui.preview.style.display = '';
     }
     _syncScenePromptReferenceLines(block);
+    try {
+        const rowEl = document.getElementById(`video-row-${block.dataset.videoIndex || ''}`);
+        if (rowEl) _flushScenesToRowDataset(rowEl);
+    } catch (e) { }
 }
 
 function _readSceneRefsFromBlock(block) {
@@ -160,6 +164,44 @@ function _readSceneRefsFromBlock(block) {
         ref_character: String(block.dataset.refCharacter || ''),
         ref_combined: String(block.dataset.refCombined || ''),
     };
+}
+
+function _sceneItemToStoredData(el, sceneNo, defaultImage) {
+    const promptEl = el ? el.querySelector('textarea[data-role="scene-prompt"]') : null;
+    const prompt = _stripLegacyReferencePrompt(promptEl ? String(promptEl.value || '') : '');
+    const refs = _readSceneRefsFromBlock(el);
+    const normalized = _normalizeSceneRefData(
+        {
+            prompt,
+            ref_product: refs.ref_product,
+            ref_character: refs.ref_character,
+            ref_combined: refs.ref_combined,
+        },
+        defaultImage
+    );
+    return {
+        scene: sceneNo,
+        prompt,
+        ref_product: normalized.ref_product,
+        ref_character: normalized.ref_character,
+        ref_combined: normalized.ref_combined,
+    };
+}
+
+/** Ghi cảnh từ modal (nếu đang mở) vào dataset — tránh mất ảnh khi tạo video không bấm Xác nhận. */
+function _flushScenesToRowDataset(rowEl) {
+    if (!rowEl) return;
+    const videoIndex = parseInt(String(rowEl.dataset.videoIndex || ''), 10) || 0;
+    const modal = document.getElementById('videoSettingsModal');
+    if (!modal || modal.style.display === 'none') return;
+    if (String(modal.dataset.videoIndex || '') !== String(videoIndex)) return;
+
+    const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
+    if (!sceneItems.length) return;
+
+    const defaultImage = String(rowEl.dataset.defaultImage || '');
+    const scenes = Array.from(sceneItems).map((el, i) => _sceneItemToStoredData(el, i + 1, defaultImage));
+    rowEl.dataset.scenes = JSON.stringify(scenes);
 }
 
 function _syncRowThumbFromScenes(rowEl) {
@@ -273,6 +315,10 @@ function _appendSceneReferenceSlots(block, refs) {
         clearBtn.onclick = () => {
             _clearSceneRefSlotUi(block, slotUi, datasetKey);
             _syncScenePromptReferenceLines(block);
+            try {
+                const rowEl = document.getElementById(`video-row-${block.dataset.videoIndex || ''}`);
+                if (rowEl) _flushScenesToRowDataset(rowEl);
+            } catch (e) { }
             _persistTaoVideoStateNow();
         };
 
@@ -399,6 +445,8 @@ function _collectOneVideoTaskFromRow(rowEl) {
     const videoIndex = parseInt(String(rowEl.dataset.videoIndex || ''), 10) || 0;
     const form_id = `video_${videoIndex}`;
     const defaultImage = String(rowEl.dataset.defaultImage || '');
+
+    _flushScenesToRowDataset(rowEl);
 
     let effect_key = String(rowEl.dataset.effectKey || '');
     const effectSelect = document.getElementById(`video-effect-${videoIndex}`);
@@ -1067,20 +1115,9 @@ function _createVideoRow(index, defaultImage, titleText) {
                     rowEl.dataset.scriptName = scriptName;
 
                     const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
-                    const scenes = Array.from(sceneItems).map((el, i) => {
-                        const promptEl = el.querySelector('textarea[data-role="scene-prompt"]');
-                        const prompt = _stripLegacyReferencePrompt(
-                            promptEl ? String(promptEl.value || '') : ''
-                        );
-                        const refs = _readSceneRefsFromBlock(el);
-                        return {
-                            scene: i + 1,
-                            prompt,
-                            ref_product: refs.ref_product,
-                            ref_character: refs.ref_character,
-                            ref_combined: refs.ref_combined,
-                        };
-                    });
+                    const scenes = Array.from(sceneItems).map((el, i) =>
+                        _sceneItemToStoredData(el, i + 1, defaultImage)
+                    );
                     rowEl.dataset.scenes = JSON.stringify(scenes);
                     _syncRowThumbFromScenes(rowEl);
                     _updatePromptsList(index);

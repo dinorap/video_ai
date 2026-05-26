@@ -191,6 +191,12 @@ async def create_video_veo3(
             ]
         if not images_to_upload and image_path and os.path.exists(image_path):
             images_to_upload = [image_path]
+        # Chỉ 1 ảnh (ô 3) hoặc tối đa 2 ảnh (ô 1 + ô 2), không bao giờ 3
+        if len(images_to_upload) > 2:
+            print(
+                f"[Veo3 Video] ⚠️ Có {len(images_to_upload)} ảnh, chỉ upload 2 đầu (product+character)"
+            )
+            images_to_upload = images_to_upload[:2]
         if not images_to_upload:
             raise ValueError("Không có ảnh tham chiếu hợp lệ để upload")
 

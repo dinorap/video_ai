@@ -642,6 +642,14 @@ async def create_video_grok(
     if not pr or not paths:
         raise ValueError("Missing prompt/image for video job")
 
+    if len(paths) > 2:
+        print(f"[Grok Video] ⚠️ Có {len(paths)} ảnh, chỉ upload 2 đầu (product+character)")
+        paths = paths[:2]
+    print(
+        f"[Grok Video] 📤 Upload {len(paths)} ảnh: "
+        f"{[os.path.basename(p) for p in paths]}"
+    )
+
     tid = str(getattr(job, 'task_id', '') or '').strip()
     last_exc = None
 

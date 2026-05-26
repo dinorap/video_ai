@@ -150,7 +150,7 @@ async def _run_one_video_task_veo3(
                 update_task_status(task_id, "failed", error=f"Thiếu prompt ở cảnh {idx+1}")
                 return None
 
-            ref_urls, _ref_types, final_prompt = prepare_scene_references(
+            ref_urls, ref_types, final_prompt = prepare_scene_references(
                 scene_prompt=prompt,
                 ref_product=str(scene.get("ref_product") or task.get("ref_product") or ""),
                 ref_character=str(scene.get("ref_character") or task.get("ref_character") or ""),
@@ -158,6 +158,10 @@ async def _run_one_video_task_veo3(
                     scene.get("ref_combined") or scene.get("image") or task.get("ref_combined") or ""
                 ),
                 default_image=str(task.get("default_image") or ""),
+            )
+            print(
+                f"[Veo3 Video Batch] Cảnh {idx + 1}: "
+                f"upload {len(ref_urls)} ảnh, ref_types={ref_types}"
             )
             if not ref_urls:
                 update_task_status(
