@@ -36,6 +36,8 @@ from utils.veo3.veo_reference_video_api import (
     parse_operations_from_reference_response,
     extract_media_from_reference_status_op,
     select_reference_video_model_key,
+    r2v_model_uses_aspect_ratio_param,
+    normalize_ui_ratio_to_video_aspect,
 )
 from utils.veo3.veo_video_api_v3_1 import (
     poll_video_status_v3_1,
@@ -88,14 +90,8 @@ def _veo3_is_cancelled(
 
 
 def _normalize_aspect_ratio(ratio: Optional[str]) -> str:
-    """Chuẩn hóa tỷ lệ video sang format Veo3 API."""
-    r = str(ratio or "").strip().lower().replace(" ", "").replace("/", ":")
-    if r in ("16:9", "169"):
-        return VIDEO_ASPECT_RATIO_LANDSCAPE
-    if r in ("9:16", "916"):
-        return VIDEO_ASPECT_RATIO_PORTRAIT
-    # Veo3 chỉ hỗ trợ 16:9 và 9:16, fallback về landscape
-    return VIDEO_ASPECT_RATIO_LANDSCAPE
+    """Chuẩn hóa 16:9 / 9:16 → VIDEO_ASPECT_RATIO_* (dùng chung với veo_reference_video_api)."""
+    return normalize_ui_ratio_to_video_aspect(ratio)
 
 
 def _resolve_veo3_output_file(
@@ -230,13 +226,14 @@ async def create_video_veo3(
             print("[Veo3 Video] ✅ Đã kết nối Playwright")
             
             # 5–6. Auth + mở project Flow (một lần mỗi phiên batch)
-            auth_data = load_veo_auth_config(profile_id)
+            # Kiểm tra expiry: nếu auth đã quá 24h thì tạo project mới
+            auth_data = load_veo_auth_config(profile_id, check_expiry=True)
             if not auth_data or not all([
                 auth_data.get("sessionId"),
                 auth_data.get("projectId"),
                 auth_data.get("access_token"),
             ]):
-                print("[Veo3 Video] ⚠️ Không tìm thấy auth, bắt đầu setup flow...")
+                print("[Veo3 Video] ⚠️ Không tìm thấy auth hoặc auth đã hết hạn (>24h), bắt đầu setup flow...")
                 if _veo3_is_cancelled(task_id, cancel_event):
                     raise asyncio.CancelledError("Task đã bị hủy")
                 auth_data = await auto_collect_veo_auth_on_project_creation(
@@ -248,7 +245,7 @@ async def create_video_veo3(
                 )
                 if not auth_data:
                     raise ValueError("Không thể trích xuất auth từ Flow")
-                print("[Veo3 Video] ✅ Đã trích xuất và lưu auth")
+                print("[Veo3 Video] ✅ Đã trích xuất và lưu auth mới (project mới)")
             else:
                 print("[Veo3 Video] ✅ Đã load auth từ veo_auth.json")
                 session_id = auth_data.get("sessionId")
@@ -427,7 +424,11 @@ async def create_video_veo3(
             frontend_model_label=frontend_model,
             account_type=account_type,
         )
-        print(f"[Veo3 Video] 🔑 API video_model_key: {video_model_key} (UI model: {frontend_model})")
+        print(
+            f"[Veo3 Video] 🔑 video_model_key={video_model_key} | UI={frontend_model} | "
+            f"aspectRatio={aspect_ratio} | "
+            f"ratio_only_in_model_id={'no' if r2v_model_uses_aspect_ratio_param(video_model_key) else 'yes'}"
+        )
 
         video_payload = build_payload_generate_reference_video(
             prompt=prompt,
@@ -612,16 +613,16 @@ async def run_video_tasks_veo3(
         
         print("[Veo3 Video Batch] ✅ Đã kết nối Playwright")
         
-        # 3. Load auth (1 lần duy nhất)
+        # 3. Load auth (1 lần duy nhất) - Kiểm tra expiry 24h
         profile_id = tasks[0].get("profile_name") or "default"
-        auth_data = load_veo_auth_config(profile_id)
+        auth_data = load_veo_auth_config(profile_id, check_expiry=True)
         
         if not auth_data or not all([
             auth_data.get("sessionId"),
             auth_data.get("projectId"),
             auth_data.get("access_token")
         ]):
-            print("[Veo3 Video Batch] ⚠️ Không tìm thấy auth, bắt đầu setup flow...")
+            print("[Veo3 Video Batch] ⚠️ Không tìm thấy auth hoặc auth đã hết hạn (>24h), bắt đầu setup flow...")
             
             def _check_cancel_batch():
                 return _veo3_is_cancelled(None, cancel_event)
@@ -637,7 +638,7 @@ async def run_video_tasks_veo3(
             if not auth_data:
                 raise ValueError("Không thể trích xuất auth từ Flow")
             
-            print("[Veo3 Video Batch] ✅ Đã trích xuất và lưu auth")
+            print("[Veo3 Video Batch] ✅ Đã trích xuất và lưu auth mới (project mới)")
         else:
             print("[Veo3 Video Batch] ✅ Đã load auth từ veo_auth.json")
             

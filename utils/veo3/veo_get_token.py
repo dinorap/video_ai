@@ -80,7 +80,7 @@ def save_veo_auth_config(profile_id: str, auth: dict) -> None:
     _write_auth_file(root)
 
 
-def load_veo_auth_config(profile_id: str, *, force_reload: bool = False) -> Optional[dict]:
+def load_veo_auth_config(profile_id: str, *, force_reload: bool = False, check_expiry: bool = True) -> Optional[dict]:
     """
     Đọc auth theo profile_id từ backend/config/veo_auth.json.
     
@@ -88,6 +88,9 @@ def load_veo_auth_config(profile_id: str, *, force_reload: bool = False) -> Opti
     - Lần đầu gọi (hoặc force_reload=True): đọc file mới
     - Trong cùng phiên (< 5 phút): dùng cache
     - Sau 5 phút: tự động reload để lấy token/cookie mới
+    
+    Kiểm tra expiry (24h):
+    - Nếu check_expiry=True và auth đã quá 24h: trả về None để trigger tạo project mới
     """
     pid = str(profile_id or "").strip()
     if not pid:
@@ -100,7 +103,12 @@ def load_veo_auth_config(profile_id: str, *, force_reload: bool = False) -> Opti
         try:
             import time as _time
             if _time.time() - cache_time < _AUTH_CACHE_TTL:
-                # Cache còn sống, trả về luôn
+                # Cache còn sống, kiểm tra expiry trước khi trả về
+                if check_expiry:
+                    updated_at = cached.get("updated_at", 0)
+                    if updated_at and (_time.time() - updated_at > 86400):  # 24h = 86400s
+                        print(f"[Veo Auth] ⚠️ Auth đã quá 24h (updated_at: {updated_at}), cần tạo project mới")
+                        return None
                 result = dict(cached)
                 result.pop("_cache_time", None)
                 return result
@@ -117,7 +125,18 @@ def load_veo_auth_config(profile_id: str, *, force_reload: bool = False) -> Opti
             "projectId": root.get("projectId"),
             "access_token": root.get("access_token"),
             "cookie": root.get("cookie") or "",
+            "updated_at": root.get("updated_at", 0),
         }
+        # Kiểm tra expiry cho migrated data
+        if check_expiry:
+            try:
+                import time as _time
+                updated_at = migrated.get("updated_at", 0)
+                if updated_at and (_time.time() - updated_at > 86400):  # 24h
+                    print(f"[Veo Auth] ⚠️ Auth đã quá 24h (migrated, updated_at: {updated_at}), cần tạo project mới")
+                    return None
+            except Exception:
+                pass
         _write_auth_file({"profiles": {pid: migrated}})
         # Lưu vào cache
         try:
@@ -134,12 +153,24 @@ def load_veo_auth_config(profile_id: str, *, force_reload: bool = False) -> Opti
         return None
     entry = profiles.get(pid)
     if isinstance(entry, dict) and _is_filled(entry):
+        # Kiểm tra expiry trước khi trả về
+        if check_expiry:
+            try:
+                import time as _time
+                updated_at = entry.get("updated_at", 0)
+                if updated_at and (_time.time() - updated_at > 86400):  # 24h
+                    print(f"[Veo Auth] ⚠️ Auth đã quá 24h (updated_at: {updated_at}), cần tạo project mới")
+                    return None
+            except Exception:
+                pass
+        
         result = {
             "sessionId": entry.get("sessionId"),
             "projectId": entry.get("projectId"),
             "access_token": entry.get("access_token"),
             "cookie": entry.get("cookie") or "",
             "project_url": entry.get("project_url") or "",
+            "updated_at": entry.get("updated_at", 0),
         }
         # Lưu vào cache với timestamp
         try:

@@ -17,19 +17,65 @@ VIDEO_ASPECT_RATIO_PORTRAIT = "VIDEO_ASPECT_RATIO_PORTRAIT"
 
 DEFAULT_SEED = 9797
 
-# Model keys r2v (tham khảo theo veo_video_api: t2v -> r2v)
-MODEL_KEY_ULTRA_LANDSCAPE = "veo_3_1_r2v_fast_landscape_ultra"
-MODEL_KEY_PORTRAIT_ULTRA = "veo_3_1_r2v_fast_portrait_ultra"
 
-MODEL_KEY_ULTRA_LANDSCAPE_RELAXED = "veo_3_1_r2v_fast_landscape_ultra_relaxed"
-MODEL_KEY_PORTRAIT_ULTRA_RELAXED = "veo_3_1_r2v_fast_portrait_ultra_relaxed"
+def normalize_ui_ratio_to_video_aspect(ratio: Optional[str]) -> str:
+    """
+    Map tỷ lệ UI → aspectRatio trong payload generate video.
 
-MODEL_KEY_LANDSCAPE_NORMAL_PRO = "veo_3_1_r2v_fast_landscape"
-MODEL_KEY_PORTRAIT_NORMAL_PRO = "veo_3_1_r2v_fast_portrait"
+    - 16:9 → VIDEO_ASPECT_RATIO_LANDSCAPE
+    - 9:16 → VIDEO_ASPECT_RATIO_PORTRAIT
 
-# Quality model (không fast) — theo veo_video_api: thay t2v -> r2v
-MODEL_KEY_LANDSCAPE_QUALITY = "veo_3_1_r2v"
-MODEL_KEY_PORTRAIT_QUALITY = "veo_3_1_r2v_portrait"
+    Luôn truyền field ``aspectRatio`` trên mỗi request (mọi tier: lite / fast / quality),
+    kể cả khi videoModelKey đã có landscape/portrait trong tên.
+    """
+    r = str(ratio or "").strip().lower().replace(" ", "").replace("/", ":")
+    if r in ("16:9", "169"):
+        return VIDEO_ASPECT_RATIO_LANDSCAPE
+    if r in ("9:16", "916"):
+        return VIDEO_ASPECT_RATIO_PORTRAIT
+    return VIDEO_ASPECT_RATIO_LANDSCAPE
+
+# Veo 3.1 r2v — không dùng biến thể *_4s / *_6s (chỉ UI 4 tier + aspectRatio)
+VEO_MODELS: Dict[str, str] = {
+    # FAST (Normal / Pro)
+    "fast_landscape": "veo_3_1_r2v_fast_landscape",
+    "fast_portrait": "veo_3_1_r2v_fast_portrait",
+    # FAST ULTRA
+    "fast_ultra_landscape": "veo_3_1_r2v_fast_landscape_ultra",
+    "fast_ultra_portrait": "veo_3_1_r2v_fast_portrait_ultra",
+    # FAST ULTRA RELAXED (không map UI mặc định; dùng khi gọi API trực tiếp)
+    "fast_ultra_landscape_relaxed": "veo_3_1_r2v_fast_landscape_ultra_relaxed",
+    "fast_ultra_portrait_relaxed": "veo_3_1_r2v_fast_portrait_ultra_relaxed",
+    # QUALITY
+    "quality_landscape": "veo_3_1_r2v",
+    "quality_portrait": "veo_3_1_r2v_portrait",
+    # LITE — tỷ lệ qua aspectRatio trong payload
+    "lite": "veo_3_1_r2v_lite",
+    # LOW PRIORITY (UI: Lite [Lower Priority])
+    "lite_low": "veo_3_1_r2v_lite_low_priority",
+}
+
+# Alias tương thích import cũ
+MODEL_KEY_LITE = VEO_MODELS["lite"]
+MODEL_KEY_LITE_LOW_PRIORITY = VEO_MODELS["lite_low"]
+MODEL_KEY_QUALITY_LANDSCAPE = VEO_MODELS["quality_landscape"]
+MODEL_KEY_QUALITY_PORTRAIT = VEO_MODELS["quality_portrait"]
+MODEL_KEY_FAST_ULTRA_LANDSCAPE = VEO_MODELS["fast_ultra_landscape"]
+MODEL_KEY_FAST_ULTRA_PORTRAIT = VEO_MODELS["fast_ultra_portrait"]
+MODEL_KEY_FAST_LANDSCAPE = VEO_MODELS["fast_landscape"]
+MODEL_KEY_FAST_PORTRAIT = VEO_MODELS["fast_portrait"]
+MODEL_KEY_ULTRA_LANDSCAPE = VEO_MODELS["fast_ultra_landscape"]
+MODEL_KEY_PORTRAIT_ULTRA = VEO_MODELS["fast_ultra_portrait"]
+MODEL_KEY_LANDSCAPE_NORMAL_PRO = VEO_MODELS["fast_landscape"]
+MODEL_KEY_PORTRAIT_NORMAL_PRO = VEO_MODELS["fast_portrait"]
+MODEL_KEY_LANDSCAPE_QUALITY = VEO_MODELS["quality_landscape"]
+MODEL_KEY_PORTRAIT_QUALITY = VEO_MODELS["quality_portrait"]
+MODEL_KEY_ULTRA_LANDSCAPE_RELAXED = VEO_MODELS["fast_ultra_landscape_relaxed"]
+MODEL_KEY_PORTRAIT_ULTRA_RELAXED = VEO_MODELS["fast_ultra_portrait_relaxed"]
+
+R2V_MODEL_KEYS_USE_ASPECT_RATIO_PARAM = frozenset(
+    {VEO_MODELS["lite"], VEO_MODELS["lite_low"]}
+)
 
 
 def _normalize_account_type(value: Optional[str]) -> str:
@@ -58,8 +104,44 @@ def _normalize_model_label(model: Optional[str]) -> str:
     return " ".join(model.strip().lower().split())
 
 
-def _is_fast_2_mode(veo_model: Optional[str]) -> bool:
-    return "fast 2.0" in str(veo_model or "").strip().lower()
+def _parse_frontend_r2v_tier(label: str) -> str:
+    """
+    Map nhãn UI → một trong: lite_priority | lite | fast | quality.
+    """
+    if not label:
+        return "lite_priority"
+    if "quality" in label:
+        return "quality"
+    if "fast" in label and "lite" not in label:
+        return "fast"
+    if "lite" in label and "priority" in label:
+        return "lite_priority"
+    if label == "veo 3.1 - lite" or ("lite" in label and "priority" not in label):
+        return "lite"
+    return "lite_priority"
+
+
+def _r2v_model_from_veo_models(
+    *,
+    tier: str,
+    is_portrait: bool,
+    account_type: str,
+) -> str:
+    """Chọn key trong VEO_MODELS theo tier UI + 9:16/16:9 + loại tài khoản."""
+    if tier == "lite_priority":
+        return VEO_MODELS["lite_low"]
+    if tier == "lite":
+        return VEO_MODELS["lite"]
+    if tier == "quality":
+        return VEO_MODELS["quality_portrait"] if is_portrait else VEO_MODELS["quality_landscape"]
+    # fast
+    if account_type == "ULTRA":
+        return (
+            VEO_MODELS["fast_ultra_portrait"]
+            if is_portrait
+            else VEO_MODELS["fast_ultra_landscape"]
+        )
+    return VEO_MODELS["fast_portrait"] if is_portrait else VEO_MODELS["fast_landscape"]
 
 
 def select_reference_video_model_key(
@@ -69,74 +151,30 @@ def select_reference_video_model_key(
     account_type: Optional[str],
 ) -> str:
     """
-    Chọn model r2v cho Reference Video theo logic tương tự veo_video_api:
-    - "veo 3.1 - lite"                        -> fast NORMAL/PRO
-    - "veo 3.1 - lite [lower/low priority]"  -> relaxed ULTRA (cùng nhánh ưu tiên thấp như fast)
-    - "veo 3.1 - fast"                        -> fast (ULTRA hoặc NORMAL/PRO)
-    - legacy fast priority label              -> fast_ultra_relaxed cho ULTRA
-    - "veo 3.1 - quality"             -> dùng model fast portrait (hiện chưa có r2v quality riêng)
-    Nếu không khớp, fallback theo loại tài khoản (ULTRA vs NORMAL/PRO).
+    Chọn videoModelKey r2v (VEO_MODELS) theo 4 tier UI × 16:9 / 9:16.
+
+    | UI | VEO_MODELS key | Ghi chú |
+    |----|----------------|---------|
+    | Lite [Lower Priority] | lite_low | + aspectRatio |
+    | Lite | lite | + aspectRatio |
+    | Fast + ULTRA | fast_ultra_landscape / fast_ultra_portrait | trong id model |
+    | Fast + Normal/Pro | fast_landscape / fast_portrait | trong id model |
+    | Quality | quality_landscape / quality_portrait | portrait có _portrait |
     """
     label = _normalize_model_label(frontend_model_label)
+    tier = _parse_frontend_r2v_tier(label)
     acc = _normalize_account_type(account_type)
-
     is_portrait = aspect_ratio == VIDEO_ASPECT_RATIO_PORTRAIT
+    return _r2v_model_from_veo_models(tier=tier, is_portrait=is_portrait, account_type=acc)
 
-    # Default UI mới: "Veo 3.1 - Lite [Lower Priority]".
-    if not label:
-        if acc == "ULTRA":
-            return (
-                MODEL_KEY_PORTRAIT_ULTRA_RELAXED
-                if is_portrait
-                else MODEL_KEY_ULTRA_LANDSCAPE_RELAXED
-            )
-        return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
 
-    # "Veo 3.1 - Lite [Lower Priority]" / tương đương
-    if "veo 3.1 - lite" in label and "priority" in label:
-        if acc == "ULTRA":
-            return (
-                MODEL_KEY_PORTRAIT_ULTRA_RELAXED
-                if is_portrait
-                else MODEL_KEY_ULTRA_LANDSCAPE_RELAXED
-            )
-        return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
-
-    # "Veo 3.1 - Lite"
-    if label == "veo 3.1 - lite":
-        return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
-
-    # "Veo 3.1 - Fast"
-    if label == "veo 3.1 - fast":
-        if acc == "ULTRA":
-            return MODEL_KEY_PORTRAIT_ULTRA if is_portrait else MODEL_KEY_ULTRA_LANDSCAPE
-        return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
-
-    # Legacy fast priority labels (normalize)
-    if "veo 3.1 - fast" in label and "priority" in label:
-        if acc == "ULTRA":
-            return (
-                MODEL_KEY_PORTRAIT_ULTRA_RELAXED
-                if is_portrait
-                else MODEL_KEY_ULTRA_LANDSCAPE_RELAXED
-            )
-        return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
-
-    # "Veo 3.1 - Quality" → tạm thời map về fast portrait tương ứng
-    if label == "veo 3.1 - quality":
-        return MODEL_KEY_PORTRAIT_QUALITY if is_portrait else MODEL_KEY_LANDSCAPE_QUALITY
-
-    # Fallback theo loại tài khoản
-    if acc == "ULTRA":
-        # Nếu frontend chọn mode "fast 2.0" thì dùng relaxed ULTRA (giống API_sync_chactacter)
-        if _is_fast_2_mode(frontend_model_label):
-            return (
-                MODEL_KEY_PORTRAIT_ULTRA_RELAXED
-                if is_portrait
-                else MODEL_KEY_ULTRA_LANDSCAPE_RELAXED
-            )
-        return MODEL_KEY_PORTRAIT_ULTRA if is_portrait else MODEL_KEY_ULTRA_LANDSCAPE
-    return MODEL_KEY_PORTRAIT_NORMAL_PRO if is_portrait else MODEL_KEY_LANDSCAPE_NORMAL_PRO
+def r2v_model_uses_aspect_ratio_param(video_model_key: str) -> bool:
+    """
+    True nếu tỷ lệ KHÔNG nằm trong videoModelKey (lite / lite_low).
+    Fast & Quality vẫn bắt buộc truyền aspectRatio trong payload — chỉ khác là
+    model id cũng có landscape/portrait.
+    """
+    return str(video_model_key or "").strip() in R2V_MODEL_KEYS_USE_ASPECT_RATIO_PARAM
 
 
 def build_payload_upload_user_image(
@@ -170,7 +208,7 @@ def build_payload_generate_reference_video(
     video_model_key: str,
     reference_media_ids: List[str],
     scene_id: Optional[str] = None,
-    aspect_ratio: str = VIDEO_ASPECT_RATIO_PORTRAIT,
+    aspect_ratio: str = VIDEO_ASPECT_RATIO_LANDSCAPE,
     output_count: int = 1,
     account_type: Optional[str] = None,
     batch_id: Optional[str] = None,
@@ -178,6 +216,10 @@ def build_payload_generate_reference_video(
 ) -> Dict[str, Any]:
     """
     Xây payload cho batchAsyncGenerateVideoReferenceImages (Reference Video).
+
+    Mỗi phần tử requests[] luôn có aspectRatio:
+    VIDEO_ASPECT_RATIO_LANDSCAPE (16:9) hoặc VIDEO_ASPECT_RATIO_PORTRAIT (9:16).
+
     reference_audio_media_id: mediaId giọng (chữ thường), giống build_text_to_video_payload.
     """
     refs: List[Dict[str, Any]] = []
