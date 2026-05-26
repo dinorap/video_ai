@@ -1454,7 +1454,7 @@ body.theme-princess .btn-update:hover {
     word-spacing  : normal;
 }
 
-.intro-line-5 {
+/* .intro-line-5 {
     font-size     : clamp(18px, 2.5vw, 32px);
     font-weight   : 300;
     color         : rgba(255, 255, 255, 0.75);
@@ -1468,7 +1468,7 @@ body.theme-princess .btn-update:hover {
     color         : rgba(255, 255, 255, 0.85);
     letter-spacing: normal;
     word-spacing  : normal;
-}
+} */
 
 .intro-line-7 {
     font-size     : clamp(22px, 3vw, 40px);
