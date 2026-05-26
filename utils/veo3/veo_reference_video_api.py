@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,6 +18,62 @@ VIDEO_ASPECT_RATIO_PORTRAIT = "VIDEO_ASPECT_RATIO_PORTRAIT"
 
 DEFAULT_SEED = 9797
 
+# Nhãn dropdown #veo3-video-quality (index.html) — nguồn chuẩn từ frontend
+FRONTEND_VEO_VIDEO_MODEL_LABELS: Tuple[str, ...] = (
+    "Veo 3.1 - Lite [Lower Priority]",
+    "Veo 3.1 - Lite",
+    "Veo 3.1 - Fast",
+    "Veo 3.1 - Quality",
+)
+DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL = FRONTEND_VEO_VIDEO_MODEL_LABELS[0]
+
+
+def _is_video_resolution_label(raw: str) -> bool:
+    """1080p / 720p … — không phải tier model Veo (tránh nhầm field quality Grok)."""
+    low = str(raw or "").strip().lower()
+    if low in ("480p", "720p", "1080p", "4k"):
+        return True
+    return bool(re.fullmatch(r"\d+p", low))
+
+
+def normalize_frontend_veo_video_model_label(raw: Optional[str]) -> str:
+    """
+    Chuẩn hóa mọi giá trị từ frontend / app (veo3_video_quality, legacy 'fast', …)
+    về đúng một trong 4 nhãn UI, rồi map sang VEO_MODELS qua select_reference_video_model_key.
+    """
+    s = str(raw or "").strip()
+    if not s or _is_video_resolution_label(s):
+        return DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL
+
+    for canonical in FRONTEND_VEO_VIDEO_MODEL_LABELS:
+        if _normalize_model_label(s) == _normalize_model_label(canonical):
+            return canonical
+
+    label = _normalize_model_label(s)
+    aliases = {
+        "quality": "Veo 3.1 - Quality",
+        "veo 3.1 - quality": "Veo 3.1 - Quality",
+        "fast": "Veo 3.1 - Fast",
+        "veo 3.1 - fast": "Veo 3.1 - Fast",
+        "lite": "Veo 3.1 - Lite",
+        "veo 3.1 - lite": "Veo 3.1 - Lite",
+        "lite_low": "Veo 3.1 - Lite [Lower Priority]",
+        "lite_low_priority": "Veo 3.1 - Lite [Lower Priority]",
+        "veo 3.1 - lite [lower priority]": "Veo 3.1 - Lite [Lower Priority]",
+        "veo 3.1 - lite [low priority]": "Veo 3.1 - Lite [Lower Priority]",
+    }
+    if label in aliases:
+        return aliases[label]
+    if "quality" in label and "veo" in label:
+        return "Veo 3.1 - Quality"
+    if "fast" in label and "lite" not in label:
+        return "Veo 3.1 - Fast"
+    if label == "veo 3.1 - lite" or ("lite" in label and "priority" not in label):
+        return "Veo 3.1 - Lite"
+    if "lite" in label and ("priority" in label or "lower" in label or "low" in label):
+        return "Veo 3.1 - Lite [Lower Priority]"
+    return DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL
+
 
 def normalize_ui_ratio_to_video_aspect(ratio: Optional[str]) -> str:
     """
@@ -28,10 +85,15 @@ def normalize_ui_ratio_to_video_aspect(ratio: Optional[str]) -> str:
     Luôn truyền field ``aspectRatio`` trên mỗi request (mọi tier: lite / fast / quality),
     kể cả khi videoModelKey đã có landscape/portrait trong tên.
     """
-    r = str(ratio or "").strip().lower().replace(" ", "").replace("/", ":")
-    if r in ("16:9", "169"):
+    raw = str(ratio or "").strip()
+    if raw == VIDEO_ASPECT_RATIO_PORTRAIT:
+        return VIDEO_ASPECT_RATIO_PORTRAIT
+    if raw == VIDEO_ASPECT_RATIO_LANDSCAPE:
         return VIDEO_ASPECT_RATIO_LANDSCAPE
-    if r in ("9:16", "916"):
+    r = raw.lower().replace(" ", "").replace("/", ":")
+    if r in ("16:9", "169", "landscape", "ngang"):
+        return VIDEO_ASPECT_RATIO_LANDSCAPE
+    if r in ("9:16", "916", "portrait", "doc", "dọc"):
         return VIDEO_ASPECT_RATIO_PORTRAIT
     return VIDEO_ASPECT_RATIO_LANDSCAPE
 
@@ -106,17 +168,15 @@ def _normalize_model_label(model: Optional[str]) -> str:
 
 def _parse_frontend_r2v_tier(label: str) -> str:
     """
-    Map nhãn UI → một trong: lite_priority | lite | fast | quality.
+    Map nhãn UI (đã chuẩn hóa) → lite_priority | lite | fast | quality.
     """
-    if not label:
-        return "lite_priority"
-    if "quality" in label:
+    canonical = normalize_frontend_veo_video_model_label(label)
+    c = _normalize_model_label(canonical)
+    if c == _normalize_model_label("Veo 3.1 - Quality"):
         return "quality"
-    if "fast" in label and "lite" not in label:
+    if c == _normalize_model_label("Veo 3.1 - Fast"):
         return "fast"
-    if "lite" in label and "priority" in label:
-        return "lite_priority"
-    if label == "veo 3.1 - lite" or ("lite" in label and "priority" not in label):
+    if c == _normalize_model_label("Veo 3.1 - Lite"):
         return "lite"
     return "lite_priority"
 
@@ -161,8 +221,9 @@ def select_reference_video_model_key(
     | Fast + Normal/Pro | fast_landscape / fast_portrait | trong id model |
     | Quality | quality_landscape / quality_portrait | portrait có _portrait |
     """
-    label = _normalize_model_label(frontend_model_label)
-    tier = _parse_frontend_r2v_tier(label)
+    aspect_ratio = normalize_ui_ratio_to_video_aspect(aspect_ratio)
+    canonical_label = normalize_frontend_veo_video_model_label(frontend_model_label)
+    tier = _parse_frontend_r2v_tier(canonical_label)
     acc = _normalize_account_type(account_type)
     is_portrait = aspect_ratio == VIDEO_ASPECT_RATIO_PORTRAIT
     return _r2v_model_from_veo_models(tier=tier, is_portrait=is_portrait, account_type=acc)
@@ -222,8 +283,9 @@ def build_payload_generate_reference_video(
 
     reference_audio_media_id: mediaId giọng (chữ thường), giống build_text_to_video_payload.
     """
+    aspect_ratio = normalize_ui_ratio_to_video_aspect(aspect_ratio)
     refs: List[Dict[str, Any]] = []
-    for media_id in list(reference_media_ids or [])[:3]:
+    for media_id in list(reference_media_ids or [])[:2]:
         mid = str(media_id or "").strip()
         if not mid:
             continue

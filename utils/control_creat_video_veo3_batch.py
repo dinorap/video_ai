@@ -13,6 +13,10 @@ import shutil
 from typing import Any, Dict, List, Optional
 
 from utils.control_creat_video_veo3 import create_video_veo3
+from utils.veo3.veo_reference_video_api import (
+    normalize_frontend_veo_video_model_label,
+    DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL,
+)
 from utils.control_script import update_task_status, create_video_task
 from utils.control_ffmpeg import merge_video_clips, TRANSCODE_DIR, apply_background_music
 from utils.video_reference_prompts import prepare_scene_references
@@ -88,12 +92,15 @@ async def _run_one_video_task_veo3(
     task: Dict[str, Any],
     sem: asyncio.Semaphore,
     cancel_event: Optional[asyncio.Event] = None,
-    veo_duration: str = '6s',
-    veo_quality: str = 'fast',
+    veo_model_label: str = '',
 ):
     """
     Chạy 1 task tạo video Veo3 với ghép video ffmpeg (GIỐNG 100% BÊN GROK).
+    Độ dài clip: 8s (Flow mặc định, không truyền duration).
     """
+    veo_model = normalize_frontend_veo_video_model_label(
+        veo_model_label or DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL
+    )
     task_id = str(task.get("task_id") or "").strip()
     scenes = task.get("scenes")
     out_clips = task.get("out_clips")
@@ -198,8 +205,7 @@ async def _run_one_video_task_veo3(
                     prompt=final_prompt,
                     out_path=clip_dir,
                     ratio=ratio,
-                    duration=veo_duration,
-                    quality=veo_quality,
+                    veo_model_label=veo_model,
                     task_id=task_id,
                     cancel_event=cancel_event,
                     profile_name=profile_name,
@@ -366,8 +372,7 @@ async def run_video_tasks_veo3_batch(
     tasks: List[dict],
     max_tabs: int = 3,
     cancel_event: Optional[asyncio.Event] = None,
-    veo_duration: str = '6s',
-    veo_quality: str = 'fast',
+    veo_model_label: str = '',
 ):
     """
     Chạy nhiều task tạo video Veo3 với ghép video ffmpeg (GIỐNG 100% BÊN GROK).
@@ -390,12 +395,15 @@ async def run_video_tasks_veo3_batch(
             }
         max_tabs: Số lượng tab tối đa chạy song song
         cancel_event: Event để hủy tất cả tasks
-        veo_duration: Độ dài video (6s, 10s)
-        veo_quality: Chất lượng video (fast, quality)
+        veo_model_label: Nhãn model Veo (mặc định Lite [Lower Priority]); độ dài 8s do Flow
     
     Returns:
         List kết quả của từng task
     """
+    canonical_model = normalize_frontend_veo_video_model_label(
+        veo_model_label or DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL
+    )
+    print(f"[Veo3 Video Batch] 🎛️ model UI → {canonical_model}")
     try:
         max_tabs = int(max_tabs)
     except Exception:
@@ -405,7 +413,7 @@ async def run_video_tasks_veo3_batch(
 
     sem = asyncio.Semaphore(max_tabs)
     jobs = [
-        _run_one_video_task_veo3(context, task, sem, cancel_event, veo_duration, veo_quality)
+        _run_one_video_task_veo3(context, task, sem, cancel_event, canonical_model)
         for task in tasks
     ]
 

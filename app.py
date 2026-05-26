@@ -2475,7 +2475,6 @@ def create_videos_veo3_handler():
 
         max_tabs = payload.get('max_tabs', 2)
         ratio = str(payload.get('ratio') or '9:16').strip()
-        duration = str(payload.get('duration') or payload.get('grok_duration') or '6s').strip()
         account_type = str(payload.get('account_type') or 'ULTRA').strip()
         tasks = payload.get('tasks')
         profile_name = payload.get('profile_name')
@@ -2483,7 +2482,19 @@ def create_videos_veo3_handler():
         music_name = str(payload.get('music_name') or '').strip()
         music_path = _music_url_to_abs_path(music_url)
 
-        veo3_video_quality = str(payload.get('veo3_video_quality') or 'fast').strip()
+        from utils.veo3.veo_reference_video_api import (
+            normalize_frontend_veo_video_model_label,
+            DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL,
+        )
+        raw_veo_model = (
+            payload.get('veo3_video_quality')
+            or payload.get('veo_model_label')
+            or payload.get('veo_model')
+        )
+        veo3_video_quality = normalize_frontend_veo_video_model_label(
+            raw_veo_model or DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL
+        )
+        print(f"[create_videos_veo3] 🎛️ model UI → {veo3_video_quality} (raw={raw_veo_model!r})")
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
@@ -2610,8 +2621,7 @@ def create_videos_veo3_handler():
                 tasks=runner_tasks,
                 max_tabs=max_tabs,
                 cancel_event=cancel_event,
-                veo_duration=duration,
-                veo_quality=veo3_video_quality,
+                veo_model_label=veo3_video_quality,
             )
 
         def _run_in_thread():

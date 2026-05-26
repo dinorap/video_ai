@@ -38,6 +38,8 @@ from utils.veo3.veo_reference_video_api import (
     select_reference_video_model_key,
     r2v_model_uses_aspect_ratio_param,
     normalize_ui_ratio_to_video_aspect,
+    normalize_frontend_veo_video_model_label,
+    DEFAULT_FRONTEND_VEO_VIDEO_MODEL_LABEL,
 )
 from utils.veo3.veo_video_api_v3_1 import (
     poll_video_status_v3_1,
@@ -129,8 +131,7 @@ async def create_video_veo3(
     prompt: str,
     out_path: str,
     ratio: str = "16:9",
-    duration: str = "6s",
-    quality: str = "fast",
+    quality: Optional[str] = None,
     task_id: Optional[str] = None,
     cancel_event: Optional[asyncio.Event] = None,
     profile_name: Optional[str] = None,
@@ -144,6 +145,7 @@ async def create_video_veo3(
     skip_render_setup: bool = False,
     keep_session_open: bool = False,
     reference_image_paths: Optional[List[str]] = None,
+    veo_model_label: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Tạo video qua Veo3 API.
@@ -154,8 +156,9 @@ async def create_video_veo3(
         prompt: Prompt mô tả video cần tạo
         out_path: Đường dẫn lưu video kết quả
         ratio: Tỷ lệ video (16:9, 9:16)
-        duration: Độ dài video (6s, 10s) - hiện tại Veo3 API tự động
-        quality: Chất lượng (fast, quality)
+        quality: Legacy — dùng veo_model_label; không truyền 1080p/720p
+        (Veo: độ dài 8s do Flow/API, không cấu hình qua tham số)
+        veo_model_label: Nhãn dropdown Veo (vd. "Veo 3.1 - Fast")
         task_id: ID của task (để cập nhật trạng thái)
         cancel_event: Event để hủy task
         profile_name: Tên profile cụ thể (nếu không có sẽ dùng profile đầu tiên)
@@ -169,7 +172,9 @@ async def create_video_veo3(
     auth_data = dict(flow_auth) if isinstance(flow_auth, dict) else None
     resolved_out = _resolve_veo3_output_file(out_path, scene_index=scene_index)
     profile_id = profile_name or "default"
-    frontend_model = quality if quality else "Veo 3.1 - Lite [Lower Priority]"
+    frontend_model = normalize_frontend_veo_video_model_label(
+        veo_model_label or quality
+    )
 
     def _check_cancel():
         return _veo3_is_cancelled(task_id, cancel_event)
@@ -305,8 +310,10 @@ async def create_video_veo3(
             
             await asyncio.sleep(0.5)
             
-            print(f"[Veo3 Video] 🔍 DEBUG: quality parameter nhận từ frontend: '{quality}'")
-            print(f"[Veo3 Video] 🔍 DEBUG: frontend_model sẽ chọn: '{frontend_model}'")
+            print(
+                f"[Veo3 Video] 🎛️ model UI: {frontend_model} "
+                f"(raw veo_model_label={veo_model_label!r}, quality={quality!r})"
+            )
             print(f"[Veo3 Video] ⚙️ Setup: Chọn tỉ lệ {ratio}, model '{frontend_model}'...")
             
             settings_ok = await setup_render_settings(
@@ -570,7 +577,6 @@ async def run_video_tasks_veo3(
                 "prompt": "...",
                 "out": "path/to/output.mp4",
                 "ratio": "16:9",
-                "duration": "6s",
                 "quality": "fast",
                 "task_id": "uuid" (optional),
                 "profile_name": "profile1" (optional),
@@ -741,11 +747,15 @@ async def run_video_tasks_veo3(
                 prompt = task["prompt"]
                 out_path = task["out"]
                 ratio = task.get("ratio", "16:9")
-                quality = task.get("quality", "fast")
+                raw_model = (
+                    task.get("veo_model_label")
+                    or task.get("veo3_video_quality")
+                    or task.get("quality")
+                )
                 account_type = task.get("account_type", "ULTRA")
                 
                 # Setup render settings cho video này
-                frontend_model = quality if quality else "Veo 3.1 - Lite [Lower Priority]"
+                frontend_model = normalize_frontend_veo_video_model_label(raw_model)
                 
                 print(f"[Veo3 Video Batch] ⚙️ Setup: Chọn tỉ lệ {ratio}, model '{frontend_model}'...")
                 

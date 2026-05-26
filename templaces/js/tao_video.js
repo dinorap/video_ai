@@ -12,6 +12,20 @@ function _videoStorageKey() {
     return 'tao_video_state_v1';
 }
 
+function _isVeo3Provider(provider) {
+    const p = String(provider || '');
+    return p.includes('Veo3') || p.toLowerCase().includes('veo3');
+}
+
+/** Nhãn dropdown #veo3-video-quality — khớp option value trong index.html */
+function _readVeo3VideoModelLabel(provider) {
+    if (!_isVeo3Provider(provider)) return null;
+    const sel = document.getElementById('veo3-video-quality');
+    return sel
+        ? String(sel.value || 'Veo 3.1 - Lite [Lower Priority]').trim()
+        : 'Veo 3.1 - Lite [Lower Priority]';
+}
+
 function _safeJsonParse(s, fallback) {
     try {
         return JSON.parse(String(s || ''));
@@ -1555,15 +1569,7 @@ function initTaoVideoPage() {
             }
         }
 
-        // Get Veo3 video quality if Veo3 is selected
-        let veo3_video_quality = null;
-        if (provider && (provider.includes('Veo3') || provider.includes('veo3'))) {
-            const veo3QualitySelect = document.getElementById('veo3-video-quality');
-            if (veo3QualitySelect) {
-                veo3_video_quality = String(veo3QualitySelect.value || 'Veo 3.1 - Lite [Lower Priority]').trim();
-                console.log('[Veo3 Video] 🔍 DEBUG: veo3_video_quality from frontend:', veo3_video_quality);
-            }
-        }
+        const veo3_video_quality = _readVeo3VideoModelLabel(provider);
 
         try {
             const payload = {
@@ -1850,20 +1856,26 @@ function initTaoVideoPage() {
             startBtn.textContent = 'Dừng';
             _createVideosRunning = true;
 
+            const veo3_video_quality = _readVeo3VideoModelLabel(provider);
+
             try {
+                const batchPayload = {
+                    provider,
+                    out_dir_label,
+                    max_tabs,
+                    ratio,
+                    quality,
+                    music_url,
+                    music_name,
+                    tasks,
+                };
+                if (veo3_video_quality) {
+                    batchPayload.veo3_video_quality = veo3_video_quality;
+                }
                 const res = await fetch('/create_videos_batch_start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        provider,
-                        out_dir_label,
-                        max_tabs,
-                        ratio,
-                        quality,
-                        music_url,
-                        music_name,
-                        tasks,
-                    }),
+                    body: JSON.stringify(batchPayload),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data || data.ok !== true) {
