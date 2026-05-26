@@ -382,6 +382,15 @@ async def create_video_veo3(
 
         if not reference_media_ids:
             raise ValueError("Không upload được ảnh tham chiếu nào")
+
+        if len(reference_media_ids) != len(images_to_upload):
+            raise ValueError(
+                f"Lệch số mediaId sau upload ({len(reference_media_ids)} vs {len(images_to_upload)})"
+            )
+        print(
+            f"[Veo3 Video] 📊 Đã upload {len(reference_media_ids)} ảnh → "
+            f"{len(reference_media_ids)} mediaId"
+        )
         
         # 9. Gửi prompt "a" và bắt recaptcha token (SAU KHI UPLOAD XONG)
         if _veo3_is_cancelled(task_id, cancel_event):

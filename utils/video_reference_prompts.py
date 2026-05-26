@@ -171,6 +171,20 @@ def resolve_exclusive_reference_urls(
     return [], []
 
 
+def _sanitize_exclusive_ref_inputs(
+    ref_product: Optional[str],
+    ref_character: Optional[str],
+    ref_combined: Optional[str],
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Ô 3 và ô 1+2 không được cùng tồn tại trong payload (ưu tiên ô 3)."""
+    combined = _non_empty_data_url(ref_combined)
+    if combined:
+        return None, None, combined
+    product = _non_empty_data_url(ref_product) or None
+    character = _non_empty_data_url(ref_character) or None
+    return product, character, None
+
+
 def prepare_scene_references(
     *,
     scene_prompt: str,
@@ -183,6 +197,9 @@ def prepare_scene_references(
     Returns:
         (data_urls_in_upload_order, ref_types, final_prompt)
     """
+    ref_product, ref_character, ref_combined = _sanitize_exclusive_ref_inputs(
+        ref_product, ref_character, ref_combined
+    )
     ref_urls, ref_types = resolve_exclusive_reference_urls(
         ref_product,
         ref_character,

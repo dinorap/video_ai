@@ -105,7 +105,7 @@ function _isDataImageUrl(v) {
     return String(v || '').trim().startsWith('data:image');
 }
 
-function _normalizeSceneRefData(scene, defaultImage) {
+function _normalizeSceneRefData(scene) {
     const s = scene || {};
     let ref_product = String(s.ref_product || '');
     let ref_character = String(s.ref_character || '');
@@ -116,12 +116,21 @@ function _normalizeSceneRefData(scene, defaultImage) {
         ref_character = '';
     } else {
         ref_combined = '';
-        const has12 = _isDataImageUrl(ref_product) || _isDataImageUrl(ref_character);
-        if (!has12 && defaultImage) {
-            ref_combined = String(defaultImage);
-        }
     }
     return { ref_product, ref_character, ref_combined };
+}
+
+/** Chỉ khi cảnh chưa có ảnh nào — gán ảnh ban đầu vào ô 3. */
+function _applyInitialDefaultCombinedRef(refs, defaultImage) {
+    const base = refs || { ref_product: '', ref_character: '', ref_combined: '' };
+    const hasAny =
+        _isDataImageUrl(base.ref_product) ||
+        _isDataImageUrl(base.ref_character) ||
+        _isDataImageUrl(base.ref_combined);
+    if (!hasAny && _isDataImageUrl(defaultImage)) {
+        return { ref_product: '', ref_character: '', ref_combined: String(defaultImage) };
+    }
+    return base;
 }
 
 function _clearSceneRefSlotUi(block, slotUi, datasetKey) {
@@ -166,19 +175,16 @@ function _readSceneRefsFromBlock(block) {
     };
 }
 
-function _sceneItemToStoredData(el, sceneNo, defaultImage) {
+function _sceneItemToStoredData(el, sceneNo) {
     const promptEl = el ? el.querySelector('textarea[data-role="scene-prompt"]') : null;
     const prompt = _stripLegacyReferencePrompt(promptEl ? String(promptEl.value || '') : '');
     const refs = _readSceneRefsFromBlock(el);
-    const normalized = _normalizeSceneRefData(
-        {
-            prompt,
-            ref_product: refs.ref_product,
-            ref_character: refs.ref_character,
-            ref_combined: refs.ref_combined,
-        },
-        defaultImage
-    );
+    const normalized = _normalizeSceneRefData({
+        prompt,
+        ref_product: refs.ref_product,
+        ref_character: refs.ref_character,
+        ref_combined: refs.ref_combined,
+    });
     return {
         scene: sceneNo,
         prompt,
@@ -188,20 +194,34 @@ function _sceneItemToStoredData(el, sceneNo, defaultImage) {
     };
 }
 
-/** Ghi cảnh từ modal (nếu đang mở) vào dataset — tránh mất ảnh khi tạo video không bấm Xác nhận. */
+function _saveVideoSettingsFromModal(videoIndex) {
+    const idx = parseInt(String(videoIndex || ''), 10) || 0;
+    if (idx <= 0) return null;
+    const rowEl = document.getElementById(`video-row-${idx}`);
+    if (!rowEl) return null;
+
+    const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
+    if (!sceneItems.length) return rowEl;
+
+    const first = sceneItems[0];
+    if (String(first.dataset.videoIndex || '') !== String(idx)) return rowEl;
+
+    const scenes = Array.from(sceneItems).map((el, i) =>
+        _sceneItemToStoredData(el, i + 1)
+    );
+    rowEl.dataset.scenes = JSON.stringify(scenes);
+    _syncRowThumbFromScenes(rowEl);
+    return rowEl;
+}
+
+/** Ghi cảnh từ modal (đang mở) vào dataset. */
 function _flushScenesToRowDataset(rowEl) {
     if (!rowEl) return;
     const videoIndex = parseInt(String(rowEl.dataset.videoIndex || ''), 10) || 0;
     const modal = document.getElementById('videoSettingsModal');
     if (!modal || modal.style.display === 'none') return;
     if (String(modal.dataset.videoIndex || '') !== String(videoIndex)) return;
-
-    const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
-    if (!sceneItems.length) return;
-
-    const defaultImage = String(rowEl.dataset.defaultImage || '');
-    const scenes = Array.from(sceneItems).map((el, i) => _sceneItemToStoredData(el, i + 1, defaultImage));
-    rowEl.dataset.scenes = JSON.stringify(scenes);
+    _saveVideoSettingsFromModal(videoIndex);
 }
 
 function _syncRowThumbFromScenes(rowEl) {
@@ -211,7 +231,7 @@ function _syncRowThumbFromScenes(rowEl) {
         const scenes = JSON.parse(String(rowEl.dataset.scenes || '') || '[]');
         if (Array.isArray(scenes)) {
             for (let i = 0; i < scenes.length; i++) {
-                const refs = _normalizeSceneRefData(scenes[i], rowEl.dataset.defaultImage);
+                const refs = _normalizeSceneRefData(scenes[i]);
                 if (refs.ref_combined) {
                     thumb = refs.ref_combined;
                     break;
@@ -466,7 +486,7 @@ function _collectOneVideoTaskFromRow(rowEl) {
 
     const normalizedScenes = scenes.map((s, i) => {
         const prompt = String((s && s.prompt) ? s.prompt : '').trim();
-        const refs = _normalizeSceneRefData(s, defaultImage);
+        const refs = _normalizeSceneRefData(s);
         return {
             scene: i + 1,
             prompt,
@@ -535,7 +555,7 @@ function _createVideoSceneBlock(scene, idx, videoIndex, defaultImage) {
     block.dataset.videoIndex = String(videoIndex);
     block.dataset.sceneIndex = String(sceneIndex);
 
-    const sceneRefs = _normalizeSceneRefData(scene, defaultImage);
+    const sceneRefs = _applyInitialDefaultCombinedRef(_normalizeSceneRefData(scene), defaultImage);
 
     block.style.cssText = 'background: color-mix(in srgb, var(--card-bg) 92%, transparent); border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent); border-radius: 10px; padding: 12px; margin-bottom: 10px;';
 
@@ -1099,6 +1119,10 @@ function _createVideoRow(index, defaultImage, titleText) {
         const closeBtn = document.getElementById('videoSettingsCloseBtn');
         if (closeBtn) {
             closeBtn.onclick = () => {
+                _saveVideoSettingsFromModal(index);
+                _updatePromptsList(index);
+                _updateScriptBadge(index);
+                _persistTaoVideoStateNow();
                 modal.style.display = 'none';
             };
         }
@@ -1116,7 +1140,7 @@ function _createVideoRow(index, defaultImage, titleText) {
 
                     const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
                     const scenes = Array.from(sceneItems).map((el, i) =>
-                        _sceneItemToStoredData(el, i + 1, defaultImage)
+                        _sceneItemToStoredData(el, i + 1)
                     );
                     rowEl.dataset.scenes = JSON.stringify(scenes);
                     _syncRowThumbFromScenes(rowEl);
@@ -1131,6 +1155,10 @@ function _createVideoRow(index, defaultImage, titleText) {
 
         modal.onclick = (e) => {
             if (e && e.target === modal) {
+                _saveVideoSettingsFromModal(index);
+                _updatePromptsList(index);
+                _updateScriptBadge(index);
+                _persistTaoVideoStateNow();
                 modal.style.display = 'none';
             }
         };
@@ -1148,7 +1176,7 @@ function _createVideoRow(index, defaultImage, titleText) {
                 const rowEl = document.getElementById(`video-row-${index}`);
                 const defaultImage = rowEl ? String(rowEl.dataset.defaultImage || '') : '';
                 const nextIdx = container.querySelectorAll('.scene-item').length;
-                const scene = { scene: nextIdx + 1, prompt: '', ref_product: '', ref_character: '', ref_combined: defaultImage || '' };
+                const scene = { scene: nextIdx + 1, prompt: '', ref_product: '', ref_character: '', ref_combined: '' };
                 const block = _createVideoSceneBlock(scene, nextIdx, index, defaultImage);
                 container.appendChild(block);
                 _renumberVideoSceneItems();
