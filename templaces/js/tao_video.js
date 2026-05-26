@@ -20,6 +20,298 @@ function _safeJsonParse(s, fallback) {
     }
 }
 
+function _stripLegacyReferencePrompt(text) {
+    let s = String(text || '');
+    const patterns = [
+        /The first image is the product reference[^.]*\.\s*Use it ONLY for the product'?s appearance\.\s*The second image is the character reference[^.]*\.\s*Use it ONLY for the character'?s appearance\.\s*/gi,
+        /The first image is the product reference[^.]*\.\s*Use it ONLY for the product'?s appearance\.\s*The second image is the character reference[^.]*\.\s*/gi,
+        /The first image is the product reference[^.]*\.\s*The second image is the character reference[^.]*\.\s*/gi,
+        /Use the image as the product reference only\.\s*Use it ONLY for the product'?s appearance\.\s*/gi,
+        /Use the image as the character reference only\.\s*Use it ONLY for the character'?s appearance\.\s*/gi,
+        /Use the image as both the character and outfit reference\.\s*Use it ONLY for the character'?s and product'?s appearance\.\s*/gi,
+        /Use the first image as the product reference only\.\s*Use it ONLY for the product'?s appearance\.\s*Use the second image as the character reference only\.\s*Use it ONLY for the character'?s appearance\.\s*/gi,
+        /Use it ONLY for the product'?s appearance\.\s*/gi,
+        /Use it ONLY for the character'?s appearance\.\s*/gi,
+        /Use the image as the product reference only\.\s*/gi,
+        /Use the image as the character reference only\.\s*/gi,
+        /Use the image as both the character and outfit reference\.\s*/gi,
+        /Use the first image as the product reference only\.\s*/gi,
+        /Use the second image as the character reference only\.\s*/gi,
+    ];
+    patterns.forEach((p) => {
+        s = s.replace(p, '');
+    });
+    return s.replace(/\s{2,}/g, ' ').trim();
+}
+
+const _REFERENCE_PROMPTS = {
+    character:
+        "Use the image as the character reference only. Use it ONLY for the character's appearance.",
+    product:
+        "Use the image as the product reference only. Use it ONLY for the product's appearance.",
+    character_and_product:
+        "Use the image as both the character and outfit reference. Use it ONLY for the character's and product's appearance.",
+};
+
+const _TWO_IMAGE_REFERENCE_PROMPT =
+    "Use the first image as the product reference only. Use it ONLY for the product's appearance. " +
+    "Use the second image as the character reference only. Use it ONLY for the character's appearance.";
+
+function _refTypesFromBlock(block) {
+    if (!block) return [];
+    if (_isDataImageUrl(block.dataset.refCombined)) {
+        return ['character_and_product'];
+    }
+    const types = [];
+    if (_isDataImageUrl(block.dataset.refProduct)) types.push('product');
+    if (_isDataImageUrl(block.dataset.refCharacter)) types.push('character');
+    return types;
+}
+
+function _buildReferenceInstruction(types) {
+    if (!types || !types.length) return '';
+    if (types.length === 1) {
+        return _REFERENCE_PROMPTS[types[0]] || '';
+    }
+    if (types.length === 2 && types[0] === 'product' && types[1] === 'character') {
+        return _TWO_IMAGE_REFERENCE_PROMPT;
+    }
+    return '';
+}
+
+function _composeScenePromptWithRefs(promptText, block) {
+    const core = _stripLegacyReferencePrompt(promptText);
+    const instr = _buildReferenceInstruction(_refTypesFromBlock(block));
+    if (!instr) return core;
+    const m = core.match(/\bScene\s+\d+\s*:/i);
+    if (m && typeof m.index === 'number') {
+        const before = core.slice(0, m.index).trim();
+        const after = core.slice(m.index).trim();
+        if (before) return `${before} ${instr} ${after}`;
+        return `${instr} ${after}`;
+    }
+    if (core) return `${core} ${instr}`;
+    return instr;
+}
+
+function _syncScenePromptReferenceLines(block) {
+    const promptEl = block ? block.querySelector('textarea[data-role="scene-prompt"]') : null;
+    if (!promptEl) return;
+    const core = _stripLegacyReferencePrompt(promptEl.value);
+    promptEl.value = _composeScenePromptWithRefs(core, block);
+}
+
+function _isDataImageUrl(v) {
+    return String(v || '').trim().startsWith('data:image');
+}
+
+function _normalizeSceneRefData(scene, defaultImage) {
+    const s = scene || {};
+    let ref_product = String(s.ref_product || '');
+    let ref_character = String(s.ref_character || '');
+    let ref_combined = String(s.ref_combined || s.image || '');
+
+    if (_isDataImageUrl(ref_combined)) {
+        ref_product = '';
+        ref_character = '';
+    } else {
+        ref_combined = '';
+        const has12 = _isDataImageUrl(ref_product) || _isDataImageUrl(ref_character);
+        if (!has12 && defaultImage) {
+            ref_combined = String(defaultImage);
+        }
+    }
+    return { ref_product, ref_character, ref_combined };
+}
+
+function _clearSceneRefSlotUi(block, slotUi, datasetKey) {
+    const ui = slotUi && slotUi[datasetKey];
+    if (!ui) return;
+    if (ui.preview) {
+        ui.preview.removeAttribute('src');
+        ui.preview.style.display = 'none';
+    }
+    if (block) block.dataset[datasetKey] = '';
+}
+
+function _applyExclusiveSceneRefs(block, slotUi, activeKey, src) {
+    if (!block) return;
+    if (activeKey === 'refCombined') {
+        _clearSceneRefSlotUi(block, slotUi, 'refProduct');
+        _clearSceneRefSlotUi(block, slotUi, 'refCharacter');
+    } else if (activeKey === 'refProduct' || activeKey === 'refCharacter') {
+        _clearSceneRefSlotUi(block, slotUi, 'refCombined');
+    }
+    block.dataset[activeKey] = src;
+    const ui = slotUi[activeKey];
+    if (ui && ui.preview) {
+        ui.preview.src = src;
+        ui.preview.style.display = '';
+    }
+    _syncScenePromptReferenceLines(block);
+}
+
+function _readSceneRefsFromBlock(block) {
+    if (!block) {
+        return { ref_product: '', ref_character: '', ref_combined: '' };
+    }
+    return {
+        ref_product: String(block.dataset.refProduct || ''),
+        ref_character: String(block.dataset.refCharacter || ''),
+        ref_combined: String(block.dataset.refCombined || ''),
+    };
+}
+
+function _syncRowThumbFromScenes(rowEl) {
+    if (!rowEl) return;
+    let thumb = '';
+    try {
+        const scenes = JSON.parse(String(rowEl.dataset.scenes || '') || '[]');
+        if (Array.isArray(scenes)) {
+            for (let i = 0; i < scenes.length; i++) {
+                const refs = _normalizeSceneRefData(scenes[i], rowEl.dataset.defaultImage);
+                if (refs.ref_combined) {
+                    thumb = refs.ref_combined;
+                    break;
+                }
+            }
+        }
+    } catch (e) { }
+    if (!thumb) thumb = String(rowEl.dataset.defaultImage || '');
+    const rowImg = rowEl.querySelector('.video-col.input img');
+    if (rowImg) {
+        if (thumb && thumb.startsWith('data:image')) {
+            rowImg.src = thumb;
+            rowImg.style.display = '';
+        } else {
+            rowImg.removeAttribute('src');
+            rowImg.style.display = 'none';
+        }
+    }
+}
+
+function _appendSceneReferenceSlots(block, refs) {
+    const slots = [
+        { datasetKey: 'refProduct', label: 'Ảnh sản phẩm' },
+        { datasetKey: 'refCharacter', label: 'Ảnh nhân vật' },
+        { datasetKey: 'refCombined', label: 'Ảnh SP + nhân vật' },
+    ];
+    const initial = refs || { ref_product: '', ref_character: '', ref_combined: '' };
+    const values = {
+        refProduct: String(initial.ref_product || ''),
+        refCharacter: String(initial.ref_character || ''),
+        refCombined: String(initial.ref_combined || ''),
+    };
+
+    block.dataset.refProduct = values.refProduct;
+    block.dataset.refCharacter = values.refCharacter;
+    block.dataset.refCombined = values.refCombined;
+
+    const imageLabel = document.createElement('div');
+    imageLabel.style.cssText = 'margin-top: 10px; margin-bottom: 6px; color: #ddd; font-weight: 700;';
+    imageLabel.textContent = 'Ảnh tham chiếu cho cảnh';
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;';
+    const slotUi = {};
+
+    slots.forEach(({ datasetKey, label }) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent); border-radius: 10px; padding: 8px; text-align: center;';
+
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size: 11px; font-weight: 700; margin-bottom: 6px; color: #ccc;';
+        lbl.textContent = label;
+
+        const preview = document.createElement('img');
+        preview.alt = label;
+        preview.style.cssText = 'width: 100%; max-height: 88px; object-fit: cover; border-radius: 8px; display: none; margin-bottom: 6px;';
+
+        const saved = values[datasetKey];
+        if (saved && saved.startsWith('data:image')) {
+            preview.src = saved;
+            preview.style.display = '';
+        }
+
+        const pickBtn = document.createElement('button');
+        pickBtn.type = 'button';
+        pickBtn.className = 'btn-header';
+        pickBtn.style.cssText = 'width: 100%; padding: 7px 4px; font-size: 11px;';
+        pickBtn.textContent = 'Chọn';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'btn-header';
+        clearBtn.style.cssText = 'width: 100%; padding: 5px; font-size: 10px; margin-top: 4px; background: color-mix(in srgb, var(--border-color) 70%, transparent);';
+        clearBtn.textContent = 'Xóa';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+
+        pickBtn.onclick = () => {
+            fileInput.value = '';
+            fileInput.click();
+        };
+
+        slotUi[datasetKey] = { preview, clearBtn };
+
+        fileInput.onchange = (e) => {
+            const f = e && e.target && e.target.files ? e.target.files[0] : null;
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const src = String(ev && ev.target ? ev.target.result : '');
+                if (!src) return;
+                _applyExclusiveSceneRefs(block, slotUi, datasetKey, src);
+                _persistTaoVideoStateNow();
+            };
+            reader.readAsDataURL(f);
+        };
+
+        clearBtn.onclick = () => {
+            _clearSceneRefSlotUi(block, slotUi, datasetKey);
+            _syncScenePromptReferenceLines(block);
+            _persistTaoVideoStateNow();
+        };
+
+        card.appendChild(lbl);
+        card.appendChild(preview);
+        card.appendChild(pickBtn);
+        card.appendChild(clearBtn);
+        card.appendChild(fileInput);
+        grid.appendChild(card);
+    });
+
+    // Enforce mutual exclusivity on restored data
+    if (_isDataImageUrl(values.refCombined)) {
+        _clearSceneRefSlotUi(block, slotUi, 'refProduct');
+        _clearSceneRefSlotUi(block, slotUi, 'refCharacter');
+        block.dataset.refCombined = values.refCombined;
+        if (slotUi.refCombined && slotUi.refCombined.preview) {
+            slotUi.refCombined.preview.src = values.refCombined;
+            slotUi.refCombined.preview.style.display = '';
+        }
+    } else if (_isDataImageUrl(values.refProduct) || _isDataImageUrl(values.refCharacter)) {
+        _clearSceneRefSlotUi(block, slotUi, 'refCombined');
+        block.dataset.refProduct = values.refProduct;
+        block.dataset.refCharacter = values.refCharacter;
+        if (_isDataImageUrl(values.refProduct) && slotUi.refProduct && slotUi.refProduct.preview) {
+            slotUi.refProduct.preview.src = values.refProduct;
+            slotUi.refProduct.preview.style.display = '';
+        }
+        if (_isDataImageUrl(values.refCharacter) && slotUi.refCharacter && slotUi.refCharacter.preview) {
+            slotUi.refCharacter.preview.src = values.refCharacter;
+            slotUi.refCharacter.preview.style.display = '';
+        }
+    }
+
+    block.appendChild(imageLabel);
+    block.appendChild(grid);
+    _syncScenePromptReferenceLines(block);
+}
+
 function _throttle(fn, waitMs) {
     let t = null;
     let lastArgs = null;
@@ -126,12 +418,22 @@ function _collectOneVideoTaskFromRow(rowEl) {
 
     const normalizedScenes = scenes.map((s, i) => {
         const prompt = String((s && s.prompt) ? s.prompt : '').trim();
-        const overrideImage = String((s && s.image) ? s.image : '');
-        const image = overrideImage ? overrideImage : defaultImage;
-        return { scene: i + 1, prompt, image };
+        const refs = _normalizeSceneRefData(s, defaultImage);
+        return {
+            scene: i + 1,
+            prompt,
+            ref_product: refs.ref_product,
+            ref_character: refs.ref_character,
+            ref_combined: refs.ref_combined,
+        };
     });
 
-    return { form_id, scenes: normalizedScenes, effect_key };
+    return {
+        form_id,
+        scenes: normalizedScenes,
+        effect_key,
+        default_image: defaultImage,
+    };
 }
 
 function _ensureVideoSettingsModal() {
@@ -185,11 +487,7 @@ function _createVideoSceneBlock(scene, idx, videoIndex, defaultImage) {
     block.dataset.videoIndex = String(videoIndex);
     block.dataset.sceneIndex = String(sceneIndex);
 
-    // Restore custom image if present in scene data
-    const sceneImg = String(scene && scene.image ? scene.image : '');
-    if (sceneImg) {
-        block.dataset.sceneImage = sceneImg;
-    }
+    const sceneRefs = _normalizeSceneRefData(scene, defaultImage);
 
     block.style.cssText = 'background: color-mix(in srgb, var(--card-bg) 92%, transparent); border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent); border-radius: 10px; padding: 12px; margin-bottom: 10px;';
 
@@ -222,69 +520,14 @@ function _createVideoSceneBlock(scene, idx, videoIndex, defaultImage) {
 
     const prompt = document.createElement('textarea');
     prompt.className = 'input-control';
-    prompt.value = String(scene && scene.prompt ? scene.prompt : '');
+    prompt.value = _stripLegacyReferencePrompt(String(scene && scene.prompt ? scene.prompt : ''));
     prompt.dataset.role = 'scene-prompt';
     prompt.style.cssText = 'width: 100%; min-height: 110px; resize: vertical;';
-
-    const imageLabel = document.createElement('div');
-    imageLabel.style.cssText = 'margin-top: 10px; margin-bottom: 6px; color: #ddd; font-weight: 700;';
-    imageLabel.textContent = 'Chọn ảnh cho cảnh';
-
-    const imageRow = document.createElement('div');
-    imageRow.style.cssText = 'display: flex; align-items: center; gap: 10px;';
-
-    const pickBtn = document.createElement('button');
-    pickBtn.type = 'button';
-    pickBtn.className = 'btn-header';
-    pickBtn.style.cssText = 'flex: 0 0 auto; padding: 10px 12px; font-size: 13px;';
-    pickBtn.textContent = 'Chọn ảnh';
-
-    const preview = document.createElement('img');
-    preview.alt = 'scene-image';
-    preview.style.cssText = 'width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); display: none;';
-
-    // Priority: Custom scene image > Default video image
-    if (sceneImg) {
-        preview.src = sceneImg;
-        preview.style.display = '';
-    } else if (defaultImage) {
-        preview.src = defaultImage;
-        preview.style.display = '';
-    }
-
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.style.display = 'none';
-
-    pickBtn.onclick = () => {
-        fileInput.value = '';
-        fileInput.click();
-    };
-
-    fileInput.onchange = (e) => {
-        const f = e && e.target && e.target.files ? e.target.files[0] : null;
-        if (!f) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const src = String(ev && ev.target ? ev.target.result : '');
-            if (!src) return;
-            preview.src = src;
-            preview.style.display = '';
-            block.dataset.sceneImage = src;
-        };
-        reader.readAsDataURL(f);
-    };
-
-    imageRow.appendChild(pickBtn);
-    imageRow.appendChild(preview);
-    imageRow.appendChild(fileInput);
 
     block.appendChild(titleRow);
     block.appendChild(promptLabel);
     block.appendChild(prompt);
-    block.appendChild(imageLabel);
-    block.appendChild(imageRow);
+    _appendSceneReferenceSlots(block, sceneRefs);
     return block;
 }
 
@@ -826,16 +1069,20 @@ function _createVideoRow(index, defaultImage, titleText) {
                     const sceneItems = document.querySelectorAll('#videoSceneContainer .scene-item');
                     const scenes = Array.from(sceneItems).map((el, i) => {
                         const promptEl = el.querySelector('textarea[data-role="scene-prompt"]');
-                        const prompt = promptEl ? String(promptEl.value || '') : '';
-                        const overrideImage = String(el.dataset.sceneImage || '');
-                        const image = (overrideImage && overrideImage !== defaultImage) ? overrideImage : '';
+                        const prompt = _stripLegacyReferencePrompt(
+                            promptEl ? String(promptEl.value || '') : ''
+                        );
+                        const refs = _readSceneRefsFromBlock(el);
                         return {
                             scene: i + 1,
                             prompt,
-                            image,
+                            ref_product: refs.ref_product,
+                            ref_character: refs.ref_character,
+                            ref_combined: refs.ref_combined,
                         };
                     });
                     rowEl.dataset.scenes = JSON.stringify(scenes);
+                    _syncRowThumbFromScenes(rowEl);
                     _updatePromptsList(index);
                     _updateScriptBadge(index);
                     _persistTaoVideoStateNow();
@@ -864,7 +1111,7 @@ function _createVideoRow(index, defaultImage, titleText) {
                 const rowEl = document.getElementById(`video-row-${index}`);
                 const defaultImage = rowEl ? String(rowEl.dataset.defaultImage || '') : '';
                 const nextIdx = container.querySelectorAll('.scene-item').length;
-                const scene = { scene: nextIdx + 1, prompt: '', image: '' };
+                const scene = { scene: nextIdx + 1, prompt: '', ref_product: '', ref_character: '', ref_combined: defaultImage || '' };
                 const block = _createVideoSceneBlock(scene, nextIdx, index, defaultImage);
                 container.appendChild(block);
                 _renumberVideoSceneItems();
@@ -1085,6 +1332,7 @@ function initTaoVideoPage() {
                 const idx = parseInt(String(it.videoIndex || ''), 10) || 0;
                 if (idx <= 0) return;
                 const row = _createVideoRow(idx, String(it.defaultImage || ''));
+                _syncRowThumbFromScenes(row);
                 try {
                     row.dataset.effectKey = String(it.effectKey || '');
                     row.dataset.scriptName = String(it.scriptName || '');
@@ -1498,30 +1746,8 @@ function initTaoVideoPage() {
                 }
             }
 
-            const tasks = rows.map((rowEl) => {
-                const videoIndex = parseInt(String(rowEl.dataset.videoIndex || ''), 10) || 0;
-                const form_id = `video_${videoIndex}`;
-                const defaultImage = String(rowEl.dataset.defaultImage || '');
-                const effect_key = String(rowEl.dataset.effectKey || '');
-
-                let scenes = [];
-                const raw = String(rowEl.dataset.scenes || '');
-                if (raw) {
-                    try { scenes = JSON.parse(raw) || []; } catch (e) { scenes = []; }
-                }
-                if (!Array.isArray(scenes) || scenes.length === 0) {
-                    scenes = [{ scene: 1, prompt: '', image: '' }];
-                }
-
-                const normalizedScenes = scenes.map((s, i) => {
-                    const prompt = String((s && s.prompt) ? s.prompt : '').trim();
-                    const overrideImage = String((s && s.image) ? s.image : '');
-                    const image = overrideImage ? overrideImage : defaultImage;
-                    return { scene: i + 1, prompt, image };
-                });
-
-                return { form_id, scenes: normalizedScenes, effect_key };
-            }).filter(t => t && t.form_id);
+            const tasks = rows.map((rowEl) => _collectOneVideoTaskFromRow(rowEl))
+                .filter((t) => t && t.form_id);
 
             // reset UI
             rows.forEach((rowEl) => {

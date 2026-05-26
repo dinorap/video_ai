@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from utils.control_creat_video_veo3 import create_video_veo3
 from utils.control_script import update_task_status, create_video_task
 from utils.control_ffmpeg import merge_video_clips, TRANSCODE_DIR, apply_background_music
+from utils.video_reference_prompts import prepare_scene_references
 
 
 _CANCELLED_VIDEO_TASKS = set()
@@ -127,10 +128,17 @@ async def _run_one_video_task_veo3(
     update_task_status(task_id, "processing", phase="processing")
 
     tmp_files: List[str] = []
+    flow_page = None
+    flow_auth: Optional[Dict[str, Any]] = None
+    ws_endpoint: Optional[str] = None
     try:
         for idx, scene in enumerate(scenes):
             # Check cancellation
-            if is_video_task_cancelled(task_id) or (cancel_event and cancel_event.is_set()):
+            if is_video_task_cancelled(task_id) or (
+                cancel_event is not None
+                and getattr(cancel_event, "is_set", None)
+                and cancel_event.is_set()
+            ):
                 update_task_status(task_id, "cancelled", error="Đã hủy")
                 # Xóa thư mục batch ngay lập tức
                 if batch_dir and os.path.isdir(batch_dir):
@@ -138,13 +146,32 @@ async def _run_one_video_task_veo3(
                 raise asyncio.CancelledError()
 
             prompt = str(scene.get("prompt") or "").strip()
-            img_data = str(scene.get("image") or "")
-            if not prompt or not img_data:
-                update_task_status(task_id, "failed", error=f"Thiếu prompt/ảnh ở cảnh {idx+1}")
+            if not prompt:
+                update_task_status(task_id, "failed", error=f"Thiếu prompt ở cảnh {idx+1}")
                 return None
 
-            img_path = _decode_data_url_to_temp_file(img_data, suffix=".png")
-            tmp_files.append(img_path)
+            ref_urls, _ref_types, final_prompt = prepare_scene_references(
+                scene_prompt=prompt,
+                ref_product=str(scene.get("ref_product") or task.get("ref_product") or ""),
+                ref_character=str(scene.get("ref_character") or task.get("ref_character") or ""),
+                ref_combined=str(
+                    scene.get("ref_combined") or scene.get("image") or task.get("ref_combined") or ""
+                ),
+                default_image=str(task.get("default_image") or ""),
+            )
+            if not ref_urls:
+                update_task_status(
+                    task_id,
+                    "failed",
+                    error=f"Thiếu ảnh tham chiếu ở cảnh {idx+1} (sản phẩm / nhân vật / kết hợp)",
+                )
+                return None
+
+            ref_paths: List[str] = []
+            for u in ref_urls:
+                p = _decode_data_url_to_temp_file(u, suffix=".png")
+                tmp_files.append(p)
+                ref_paths.append(p)
 
             update_task_status(
                 task_id,
@@ -162,8 +189,9 @@ async def _run_one_video_task_veo3(
                 # Gọi create_video_veo3 thay vì create_video_grok
                 result = await create_video_veo3(
                     context=context,
-                    image_path=img_path,
-                    prompt=prompt,
+                    image_path=ref_paths[0],
+                    reference_image_paths=ref_paths,
+                    prompt=final_prompt,
                     out_path=clip_dir,
                     ratio=ratio,
                     duration=veo_duration,
@@ -172,7 +200,20 @@ async def _run_one_video_task_veo3(
                     cancel_event=cancel_event,
                     profile_name=profile_name,
                     account_type=account_type,
+                    scene_index=idx,
+                    flow_page=flow_page,
+                    flow_auth=flow_auth,
+                    ws_endpoint_external=ws_endpoint,
+                    skip_flow_init=(flow_page is not None),
+                    skip_render_setup=(idx > 0),
+                    keep_session_open=True,
                 )
+                if result.get("flow_page") is not None:
+                    flow_page = result.get("flow_page")
+                if isinstance(result.get("flow_auth"), dict):
+                    flow_auth = result.get("flow_auth")
+                if result.get("ws_endpoint"):
+                    ws_endpoint = str(result.get("ws_endpoint"))
                 
                 if not result.get("ok"):
                     error_msg = result.get("error", "Unknown error")
@@ -293,12 +334,19 @@ async def _run_one_video_task_veo3(
         return True
 
     except asyncio.CancelledError:
+        update_task_status(task_id, "cancelled", error="Đã hủy")
         raise
     except Exception as e:
         print(f"[Veo3 Batch] ❌ Lỗi: {e}")
         update_task_status(task_id, "failed", error=str(e))
         return None
     finally:
+        if ws_endpoint:
+            try:
+                from utils.veo3.flow_actions import cleanup_browser
+                await cleanup_browser(ws_endpoint)
+            except Exception as e:
+                print(f"[Veo3 Batch] ⚠️ Lỗi cleanup session Flow: {e}")
         clear_video_task_cancel(task_id)
         for p in tmp_files:
             try:

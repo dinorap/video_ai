@@ -257,6 +257,7 @@ async def fetch_recaptcha_token_via_page(
     prompt_for_token: str = "a",
     timeout: int = 60,
     stabilize_seconds: int = 0,
+    stop_check=None,
 ) -> Optional[str]:
     """
     🔥 Setup listeners, GỬI PROMPT "a", và bắt recaptcha token.
@@ -320,15 +321,31 @@ async def fetch_recaptcha_token_via_page(
                 print(f"[Veo Get Token] ✅ Đã gửi prompt '{prompt_for_token}'")
         
         print(f"[Veo Get Token] ⏳ Đợi bắt recaptcha token (timeout: {timeout}s)...")
-        
-        try:
-            token = await asyncio.wait_for(fut, timeout=int(timeout))
-            if token:
-                print(f"[Veo Get Token] ✅ Đã bắt được token: {len(token)} ký tự")
-            return token
-        except asyncio.TimeoutError:
-            print(f"[Veo Get Token] ⚠️ Timeout {timeout}s - không bắt được token")
-            return None
+
+        import time as _time
+
+        deadline = _time.monotonic() + max(1, int(timeout))
+        while _time.monotonic() < deadline:
+            if stop_check is not None:
+                try:
+                    if stop_check():
+                        print("[Veo Get Token] ⚠️ Đã hủy khi đợi recaptcha token")
+                        return None
+                except Exception:
+                    pass
+            wait_s = min(1.0, deadline - _time.monotonic())
+            if wait_s <= 0:
+                break
+            try:
+                token = await asyncio.wait_for(asyncio.shield(fut), timeout=wait_s)
+                if token:
+                    print(f"[Veo Get Token] ✅ Đã bắt được token: {len(token)} ký tự")
+                return token
+            except asyncio.TimeoutError:
+                continue
+
+        print(f"[Veo Get Token] ⚠️ Timeout {timeout}s - không bắt được token")
+        return None
     finally:
         # 🔥 CLEANUP: Gỡ bỏ tất cả listeners và CDP session
         try:

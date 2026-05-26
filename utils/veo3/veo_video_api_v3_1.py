@@ -7,9 +7,10 @@ Dùng cho dự án migrate từ operation cũ (fifeUrl) sang format mới (media
 import asyncio
 import json
 import base64
+import os
 import subprocess
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 from playwright.async_api import Page  # type: ignore
 
@@ -24,7 +25,8 @@ async def poll_video_status_v3_1(
     project_id: str,
     access_token: str,
     timeout_seconds: int = 420,
-    poll_interval: int = 6
+    poll_interval: int = 6,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     """
     Poll status video với API v3.1+ format mới.
@@ -54,6 +56,19 @@ async def poll_video_status_v3_1(
     status_url = "https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus"
     
     while True:
+        if cancel_check is not None:
+            try:
+                if cancel_check():
+                    print("ℹ️ Poll status: đã hủy theo yêu cầu user")
+                    return {
+                        "success": False,
+                        "status": "CANCELLED",
+                        "media_id": media_id,
+                        "error": "Đã hủy",
+                    }
+            except Exception:
+                pass
+
         elapsed = time.time() - start_time
         if elapsed > timeout_seconds:
             return {
@@ -115,16 +130,41 @@ async def poll_video_status_v3_1(
                 print(f"ℹ️ Status: {short_status}")
                 last_status = short_status
             
-            # Check error
+            # Check error object on media item
             error = matched_item.get("error")
             if isinstance(error, dict):
+                msg = error.get("message") or error.get("status") or str(error)
                 return {
                     "success": False,
                     "status": "FAILED",
                     "media_id": media_id,
-                    "error": f"Code {error.get('code')}: {error.get('message')}"
+                    "error": f"Code {error.get('code')}: {msg}"
                 }
-            
+
+            failure_reasons = media_status.get("failureReasons") or []
+            if not isinstance(failure_reasons, list):
+                failure_reasons = [failure_reasons] if failure_reasons else []
+
+            def _format_failure_detail() -> str:
+                parts = []
+                for r in failure_reasons[:5]:
+                    if isinstance(r, dict):
+                        parts.append(
+                            r.get("message")
+                            or r.get("reason")
+                            or r.get("code")
+                            or str(r)
+                        )
+                    elif r:
+                        parts.append(str(r))
+                detail = "; ".join(p for p in parts if p)
+                if detail:
+                    return detail
+                gen_err = metadata.get("generationError") or metadata.get("errorMessage")
+                if gen_err:
+                    return str(gen_err)
+                return ""
+
             # Nếu SUCCESSFUL -> return
             if short_status == "SUCCESSFUL":
                 return {
@@ -132,14 +172,25 @@ async def poll_video_status_v3_1(
                     "status": "SUCCESSFUL",
                     "media_id": media_id
                 }
-            
-            # Nếu FAILED -> return
+
+            # FAILED / cancelled / other terminal states
             if short_status not in {"PENDING", "ACTIVE"}:
+                detail = _format_failure_detail()
+                err_msg = f"Google render {short_status}"
+                if detail:
+                    err_msg = f"{err_msg}: {detail}"
+                if short_status == "FAILED":
+                    print(f"❌ Chi tiết FAILED: {detail or '(không có failureReasons)'}")
+                    try:
+                        snippet = json.dumps(matched_item, ensure_ascii=False)[:1200]
+                        print(f"❌ Response media item (rút gọn): {snippet}")
+                    except Exception:
+                        pass
                 return {
                     "success": False,
                     "status": short_status,
                     "media_id": media_id,
-                    "error": f"Unexpected status: {short_status}"
+                    "error": err_msg
                 }
             
         except Exception as e:
@@ -214,8 +265,17 @@ async def download_video_from_encoded_v3_1(
         
         # Decode base64 và lưu file
         video_bytes = base64.b64decode(encoded_video)
-        
-        out_path = Path(output_path)
+
+        raw_out = str(output_path or "").strip()
+        if not raw_out:
+            return {"success": False, "error": "Missing output_path"}
+        if os.path.isdir(raw_out):
+            os.makedirs(raw_out, exist_ok=True)
+            raw_out = os.path.join(raw_out, f"clip_{media_id[:8]}.mp4")
+
+        out_path = Path(raw_out)
+        if not out_path.suffix:
+            out_path = out_path.with_suffix(".mp4")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(video_bytes)
         
@@ -271,7 +331,8 @@ async def full_video_workflow_v3_1(
     access_token: str,
     output_path: str,
     ffmpeg_path: str = "ffmpeg",
-    timeout_seconds: int = 420
+    timeout_seconds: int = 420,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> Dict[str, Any]:
     """
     Workflow đầy đủ: Poll status -> GET media -> Download video + thumbnail
@@ -301,7 +362,8 @@ async def full_video_workflow_v3_1(
         media_id,
         project_id,
         access_token,
-        timeout_seconds=timeout_seconds
+        timeout_seconds=timeout_seconds,
+        cancel_check=cancel_check,
     )
     
     if not status_result.get("success"):

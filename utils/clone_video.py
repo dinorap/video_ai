@@ -227,10 +227,6 @@ The system MUST output EXACTLY this structure:
         ""? ALL CONTENT HERE MUST BE WRITTEN IN {language}.
          duration: 8 seconds.
          realistic live-action footage, no cartoon, no illustration.
-         The first image is the product reference ({TARGET_PRODUCT}).
-         Use it ONLY for the product's appearance.
-         The second image is the character reference.
-         Use it ONLY for the character's appearance.
          Scene {i}: The character is fully visible from head to toe
          in a stable full-body shot. [Describe ONLY human pose and motion.
          No objects. No background. No appearance details.
@@ -263,10 +259,6 @@ You MUST write the entire value of each output field ""prompt"" in {language}.
 This includes translating ALL fixed lines such as:
 - ""duration: 8 seconds.""
 - ""realistic live-action footage, no cartoon, no illustration.""
-- ""The first image is the product reference ({TARGET_PRODUCT}).""
-- ""Use it ONLY for the product's appearance.""
-- ""The second image is the character reference.""
-- ""Use it ONLY for the character's appearance.""
 - ""Scene {i}: ...""
 NO ENGLISH is allowed inside ""prompt"" when {language} is Vietnamese.
 Only JSON keys remain in English.

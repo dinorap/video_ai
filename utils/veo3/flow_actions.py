@@ -10,7 +10,7 @@ class FlowStoppedError(Exception):
 
 
 import asyncio
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, List
 import requests 
 from playwright.async_api import async_playwright, Page, Browser, TimeoutError
 import random
@@ -1750,112 +1750,167 @@ async def click_kSyLER_menu(page: Page) -> bool:
     return False
 
 
-async def click_menuitem_preset(page: Page, model_text: Optional[str] = None) -> bool:
-    """
-    Chọn model trong menu đã mở bằng JavaScript - giống code test thành công của user.
-    """
-    target_text = (model_text or "").strip()
-    if not target_text:
-        print("[Flow Actions] ⚠️ Thiếu model_text từ frontend.")
-        return False
-    
+def _score_flow_model_match(target_norm: str, item_norm: str) -> int:
+    """Điểm khớp nhãn model UI Flow (sau _normalize_flow_model_label_ui)."""
+    if not target_norm or not item_norm:
+        return -1
+    if target_norm == item_norm:
+        return 100
+    if target_norm in item_norm or item_norm in target_norm:
+        return 85
+    target_set = set(target_norm.split())
+    item_set = set(item_norm.split())
+    score = len(target_set & item_set) * 6
+    if "veo" in target_set and "veo" in item_set:
+        score += 10
+    if "3.1" in target_norm and "3.1" in item_norm:
+        score += 8
+    if "lite" in target_set and "lite" in item_set:
+        score += 14
+    if "fast" in target_set and "fast" in item_set:
+        score += 14
+    if "quality" in target_set and "quality" in item_set:
+        score += 14
+    if "priority" in target_set and "priority" in item_set:
+        score += 10
+    if "low" in target_set and "low" in item_set:
+        score += 6
+    if ("fast" in target_set) != ("fast" in item_set):
+        score -= 12
+    if ("quality" in target_set) != ("quality" in item_set):
+        score -= 12
+    if ("lite" in target_set) != ("lite" in item_set):
+        score -= 14
+    if "priority" in target_set and "priority" not in item_set:
+        score -= 12
+    if "priority" not in target_set and "priority" in item_set:
+        score -= 6
+    return score
+
+
+async def _list_visible_menuitem_labels(page: Page) -> List[str]:
+    labels: List[str] = []
     try:
-        # 🔥 Dùng JavaScript để click model item - giống code test thành công
-        # So sánh case-insensitive để tránh lỗi "Nano Banana pro" vs "Nano Banana Pro"
-        clicked = await page.evaluate("""(modelName) => {
-            const item = [...document.querySelectorAll('div[role="menuitem"]')]
-                .find(el => {
-                    const text = (el.innerText || el.textContent || '').trim();
-                    // Case-insensitive search
-                    return text.toLowerCase().includes(modelName.toLowerCase());
-                });
-
-            if (!item) {
-                console.log('❌ Không tìm thấy menu item ' + modelName);
-                // Debug: log tất cả items có trong menu
-                const allItems = [...document.querySelectorAll('div[role="menuitem"]')]
-                    .map(el => (el.innerText || el.textContent || '').trim());
-                console.log('📋 Các model có trong menu:', allItems);
-                return false;
-            }
-
-            const btn = item.querySelector('button') || item;
-            btn.click();
-
-            console.log('✅ Đã bấm ' + modelName);
-            return true;
-        }""", target_text)
-        
-        if clicked:
-            print(f"[Flow Actions] ✅ Đã chọn model '{target_text}'")
-            return True
-        else:
-            print(f"[Flow Actions] ⚠️ Không tìm thấy model '{target_text}' trong menu.")
-            return False
-            
-    except Exception as e:
-        print(f"[Flow Actions] ⚠️ click_menuitem_preset: {e}")
-        return False
-        if "low" in target_tokens and "low" in item_tokens and "priority" in target_tokens and "priority" in item_tokens:
-            score += 8
-
-        # Tránh match nhầm fast/quality/lite
-        if ("fast" in target_tokens) != ("fast" in item_tokens):
-            score -= 10
-        if ("quality" in target_tokens) != ("quality" in item_tokens):
-            score -= 10
-        if ("lite" in target_tokens) != ("lite" in item_tokens):
-            score -= 12
-        # Ưu tiên đúng nhánh priority
-        if "priority" in target_tokens and "priority" not in item_tokens:
-            score -= 14
-        if "priority" not in target_tokens and "priority" in item_tokens:
-            score -= 6
-        return score
-
-    target_text = (model_text or "").strip()
-    if not target_text:
-        print("[Flow Actions] ⚠️ Thiếu model_text từ frontend.")
-        return False
-    target_norm = _normalize_model_text(target_text)
-    
-    try:
-        menu = await _first_visible_role_menu(page)
-        if menu is None:
-            return False
-        await menu.wait_for(state="visible", timeout=3_500)
-        items = menu.locator('[role="menuitem"]')
-        try:
-            n = await items.count()
-        except Exception:
-            n = 0
-        
-        best_idx = -1
-        best_score = -1
+        items = page.locator('[role="menuitem"]')
+        n = await items.count()
         for idx in range(n):
             el = items.nth(idx)
             try:
                 if not await el.is_visible():
                     continue
                 txt = ((await el.inner_text()) or "").strip()
-                item_norm = _normalize_model_text(txt)
-                score = _score_model_match(target_norm, item_norm)
+                if txt:
+                    labels.append(txt)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return labels
+
+
+async def click_menuitem_preset(page: Page, model_text: Optional[str] = None) -> bool:
+    """Chọn model trong menu Flow (fuzzy match Playwright + fallback JS)."""
+    target_text = (model_text or "").strip()
+    if not target_text:
+        print("[Flow Actions] ⚠️ Thiếu model_text từ frontend.")
+        return False
+
+    target_norm = _normalize_flow_model_label_ui(target_text)
+    min_score = 18
+
+    try:
+        menu = await _first_visible_role_menu(page)
+        if menu is not None:
+            await menu.wait_for(state="visible", timeout=3_500)
+        items = page.locator('[role="menuitem"]')
+        n = await items.count()
+        best_idx = -1
+        best_score = -1
+        best_label = ""
+        for idx in range(n):
+            el = items.nth(idx)
+            try:
+                if not await el.is_visible():
+                    continue
+                txt = ((await el.inner_text()) or "").strip()
+                if not txt:
+                    continue
+                item_norm = _normalize_flow_model_label_ui(txt)
+                score = _score_flow_model_match(target_norm, item_norm)
                 if score > best_score:
                     best_score = score
                     best_idx = idx
+                    best_label = txt
             except Exception:
                 continue
-        
-        if best_idx < 0:
-            print(f"[Flow Actions] ⚠️ Không tìm thấy model '{target_text}' trong menu.")
-            return False
-        
-        el = items.nth(best_idx)
-        await el.scroll_into_view_if_needed()
-        await el.click(delay=random.randint(50, 130), timeout=3_500)
-        return True
+
+        if best_idx >= 0 and best_score >= min_score:
+            el = items.nth(best_idx)
+            await el.scroll_into_view_if_needed()
+            await el.click(delay=random.randint(50, 130), timeout=3_500)
+            print(f"[Flow Actions] ✅ Đã chọn model '{best_label}' (score={best_score})")
+            return True
     except Exception as e:
-        print(f"[Flow Actions] ⚠️ click_menuitem_preset: {e}")
+        print(f"[Flow Actions] ⚠️ click_menuitem_preset (playwright): {e}")
+
+    try:
+        clicked = await page.evaluate(
+            """(modelName) => {
+            const norm = (s) => String(s || '').toLowerCase()
+                .replace(/\\[|\\]/g, '')
+                .replace(/lower priority/g, 'low priority')
+                .replace(/veo3\\.1/g, 'veo 3.1').replace(/veo3/g, 'veo 3')
+                .replace(/\\s+/g, ' ').trim();
+            const target = norm(modelName);
+            const scoreMatch = (a, b) => {
+                if (!a || !b) return -1;
+                if (a === b) return 100;
+                if (a.includes(b) || b.includes(a)) return 85;
+                const t1 = a.split(' '), t2 = b.split(' ');
+                const common = t1.filter(w => t2.includes(w)).length;
+                let s = common * 6;
+                if (a.includes('lite') && b.includes('lite')) s += 14;
+                if (a.includes('fast') && b.includes('fast')) s += 14;
+                if (a.includes('quality') && b.includes('quality')) s += 14;
+                if (a.includes('priority') && b.includes('priority')) s += 10;
+                return s;
+            };
+            const items = [...document.querySelectorAll('div[role="menuitem"]')];
+            let best = null, bestScore = -1, bestText = '';
+            for (const el of items) {
+                const text = norm((el.innerText || el.textContent || '').trim());
+                if (!text) continue;
+                const sc = scoreMatch(target, text);
+                if (sc > bestScore) { bestScore = sc; best = el; bestText = (el.innerText || '').trim(); }
+            }
+            if (best && bestScore >= 18) {
+                (best.querySelector('button') || best).click();
+                return { ok: true, label: bestText, score: bestScore };
+            }
+            return {
+                ok: false,
+                labels: items.map(el => (el.innerText || el.textContent || '').trim()).filter(Boolean)
+            };
+        }""",
+            target_text,
+        )
+        if isinstance(clicked, dict) and clicked.get("ok"):
+            print(
+                f"[Flow Actions] ✅ Đã chọn model '{clicked.get('label')}' "
+                f"(JS score={clicked.get('score')})"
+            )
+            return True
+        menu_labels: List[str] = []
+        if isinstance(clicked, dict):
+            menu_labels = list(clicked.get("labels") or [])
+        if not menu_labels:
+            menu_labels = await _list_visible_menuitem_labels(page)
+        print(f"[Flow Actions] ⚠️ Không tìm thấy model '{target_text}' trong menu.")
+        if menu_labels:
+            print(f"[Flow Actions] 📋 Model có trong menu: {menu_labels}")
+        return False
+    except Exception as e:
+        print(f"[Flow Actions] ⚠️ click_menuitem_preset (JS): {e}")
         return False
 
 

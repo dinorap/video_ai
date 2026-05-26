@@ -1450,17 +1450,34 @@ def create_videos_batch_start():
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
 
-        # Validate scenes content early to avoid creating temp output folders when missing prompt/image
+        # Validate scenes: prompt + ít nhất một ảnh tham chiếu (ô kịch bản hoặc ảnh riêng cảnh)
         try:
+            from utils.video_reference_prompts import prepare_scene_references
             for t in tasks:
                 scenes = (t or {}).get('scenes')
                 if not isinstance(scenes, list) or len(scenes) == 0:
                     continue
                 for idx, scene in enumerate(scenes):
                     prompt = str((scene or {}).get('prompt') or '').strip()
-                    img_data = str((scene or {}).get('image') or '').strip()
-                    if not prompt or not img_data:
-                        return jsonify({'ok': False, 'error': f'Thiếu prompt/ảnh ở cảnh {idx + 1}'}), 400
+                    if not prompt:
+                        return jsonify({'ok': False, 'error': f'Thiếu prompt ở cảnh {idx + 1}'}), 400
+                    ref_urls, _, _ = prepare_scene_references(
+                        scene_prompt=prompt,
+                        ref_product=str((scene or {}).get('ref_product') or (t or {}).get('ref_product') or ''),
+                        ref_character=str((scene or {}).get('ref_character') or (t or {}).get('ref_character') or ''),
+                        ref_combined=str(
+                            (scene or {}).get('ref_combined')
+                            or (scene or {}).get('image')
+                            or (t or {}).get('ref_combined')
+                            or ''
+                        ),
+                        default_image=str((t or {}).get('default_image') or ''),
+                    )
+                    if not ref_urls:
+                        return jsonify({
+                            'ok': False,
+                            'error': f'Thiếu ảnh tham chiếu ở cảnh {idx + 1} (sản phẩm / nhân vật / kết hợp)',
+                        }), 400
         except Exception:
             pass
 
@@ -1514,6 +1531,10 @@ def create_videos_batch_start():
                 'music_url': music_url,
                 'music_name': music_name,
                 'music_path': music_path,
+                'ref_product': str((t or {}).get('ref_product') or ''),
+                'ref_character': str((t or {}).get('ref_character') or ''),
+                'ref_combined': str((t or {}).get('ref_combined') or ''),
+                'default_image': str((t or {}).get('default_image') or ''),
             })
 
         if len(runner_tasks) == 0:
@@ -1605,8 +1626,11 @@ def cancel_create_videos_batch():
             batch_folders = []
 
         try:
+            from utils.control_creat_video import cancel_video_task as cancel_grok_video_task
             from utils.control_creat_video_veo3_batch import cancel_video_task as cancel_veo3_video_task
+
             for tid in {str(x).strip() for x in task_ids if str(x).strip()}:
+                cancel_grok_video_task(tid)
                 cancel_veo3_video_task(tid)
         except Exception:
             pass
@@ -2465,15 +2489,32 @@ def create_videos_veo3_handler():
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
 
         try:
+            from utils.video_reference_prompts import prepare_scene_references
             for t in tasks:
                 scenes = (t or {}).get('scenes')
                 if not isinstance(scenes, list) or len(scenes) == 0:
                     continue
                 for idx, scene in enumerate(scenes):
                     prompt = str((scene or {}).get('prompt') or '').strip()
-                    img_data = str((scene or {}).get('image') or '').strip()
-                    if not prompt or not img_data:
-                        return jsonify({'ok': False, 'error': f'Thiếu prompt/ảnh ở cảnh {idx + 1}'}), 400
+                    if not prompt:
+                        return jsonify({'ok': False, 'error': f'Thiếu prompt ở cảnh {idx + 1}'}), 400
+                    ref_urls, _, _ = prepare_scene_references(
+                        scene_prompt=prompt,
+                        ref_product=str((scene or {}).get('ref_product') or (t or {}).get('ref_product') or ''),
+                        ref_character=str((scene or {}).get('ref_character') or (t or {}).get('ref_character') or ''),
+                        ref_combined=str(
+                            (scene or {}).get('ref_combined')
+                            or (scene or {}).get('image')
+                            or (t or {}).get('ref_combined')
+                            or ''
+                        ),
+                        default_image=str((t or {}).get('default_image') or ''),
+                    )
+                    if not ref_urls:
+                        return jsonify({
+                            'ok': False,
+                            'error': f'Thiếu ảnh tham chiếu ở cảnh {idx + 1} (sản phẩm / nhân vật / kết hợp)',
+                        }), 400
         except Exception:
             pass
 
@@ -2513,10 +2554,16 @@ def create_videos_veo3_handler():
             valid_scenes = []
             for scene in scenes:
                 prompt = str((scene or {}).get('prompt') or '').strip()
-                image_data = str((scene or {}).get('image') or '').strip()
-                if not prompt or not image_data:
+                if not prompt:
                     continue
-                valid_scenes.append({'prompt': prompt, 'image': image_data})
+                valid_scenes.append({
+                    'prompt': prompt,
+                    'ref_product': str((scene or {}).get('ref_product') or ''),
+                    'ref_character': str((scene or {}).get('ref_character') or ''),
+                    'ref_combined': str(
+                        (scene or {}).get('ref_combined') or (scene or {}).get('image') or ''
+                    ),
+                })
 
             if len(valid_scenes) == 0:
                 continue
@@ -2543,10 +2590,14 @@ def create_videos_veo3_handler():
                 'music_path': music_path,
                 'profile_name': profile_name or (t or {}).get('profile_name'),
                 'account_type': account_type,
+                'ref_product': str((t or {}).get('ref_product') or ''),
+                'ref_character': str((t or {}).get('ref_character') or ''),
+                'ref_combined': str((t or {}).get('ref_combined') or ''),
+                'default_image': str((t or {}).get('default_image') or ''),
             })
 
         if len(runner_tasks) == 0:
-            return jsonify({'ok': False, 'error': 'No valid tasks (thiếu prompt hoặc ảnh cảnh)'}), 400
+            return jsonify({'ok': False, 'error': 'No valid tasks (thiếu prompt hoặc ảnh tham chiếu)'}), 400
 
         from utils.control_creat_video_veo3_batch import run_video_tasks_veo3_batch
 

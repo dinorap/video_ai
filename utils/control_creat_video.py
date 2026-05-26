@@ -12,6 +12,7 @@ import json
 import uuid
 
 from utils.grok.creat_video import VideoJob, create_video_grok, _ACTIVE_VIDEO_PAGES
+from utils.video_reference_prompts import prepare_scene_references
 from utils.control_script import update_task_status
 from utils.control_ffmpeg import merge_video_clips, TRANSCODE_DIR, apply_background_music
 
@@ -32,6 +33,19 @@ def is_video_task_cancelled(task_id: str) -> bool:
     if not tid:
         return False
     return tid in _CANCELLED_VIDEO_TASKS
+
+
+def _grok_is_cancelled(
+    task_id: Optional[str] = None,
+    cancel_event: Any = None,
+) -> bool:
+    """Hủy theo task_id (nút Hủy từng dòng) hoặc cancel_event (Hủy cả batch)."""
+    tid = str(task_id or "").strip()
+    if tid and is_video_task_cancelled(tid):
+        return True
+    if cancel_event is not None and getattr(cancel_event, "is_set", None) and cancel_event.is_set():
+        return True
+    return False
 
 
 def clear_video_task_cancel(task_id: str) -> None:
@@ -122,7 +136,7 @@ async def _run_one_video_task(
     try:
         for idx, scene in enumerate(scenes):
             # Check cancellation
-            if is_video_task_cancelled(task_id) or (cancel_event and cancel_event.is_set()):
+            if _grok_is_cancelled(task_id, cancel_event):
                 update_task_status(task_id, "cancelled", error="Đã hủy")
                 # Đóng tab ngay lập tức nếu đang chạy
                 try:
@@ -137,13 +151,32 @@ async def _run_one_video_task(
                 raise asyncio.CancelledError()
 
             prompt = str(scene.get("prompt") or "").strip()
-            img_data = str(scene.get("image") or "")
-            if not prompt or not img_data:
-                update_task_status(task_id, "failed", error=f"Thiếu prompt/ảnh ở cảnh {idx+1}")
+            if not prompt:
+                update_task_status(task_id, "failed", error=f"Thiếu prompt ở cảnh {idx+1}")
                 return None
 
-            img_path = _decode_data_url_to_temp_file(img_data, suffix=".png")
-            tmp_files.append(img_path)
+            ref_urls, _ref_types, final_prompt = prepare_scene_references(
+                scene_prompt=prompt,
+                ref_product=str(scene.get("ref_product") or task.get("ref_product") or ""),
+                ref_character=str(scene.get("ref_character") or task.get("ref_character") or ""),
+                ref_combined=str(
+                    scene.get("ref_combined") or scene.get("image") or task.get("ref_combined") or ""
+                ),
+                default_image=str(task.get("default_image") or ""),
+            )
+            if not ref_urls:
+                update_task_status(
+                    task_id,
+                    "failed",
+                    error=f"Thiếu ảnh tham chiếu ở cảnh {idx+1} (sản phẩm / nhân vật / kết hợp)",
+                )
+                return None
+
+            ref_paths: List[str] = []
+            for u in ref_urls:
+                p = _decode_data_url_to_temp_file(u, suffix=".png")
+                tmp_files.append(p)
+                ref_paths.append(p)
 
             update_task_status(
                 task_id,
@@ -157,9 +190,25 @@ async def _run_one_video_task(
             # Fix 4: Use Semaphore per scene for better tab utilization
             async with sem:
                 clip_dir = str(out_clips[idx])
-                job = VideoJob(image_path=img_path, prompt=prompt, out_path=clip_dir, task_id=task_id)
+                job = VideoJob(
+                    image_path=ref_paths[0],
+                    image_paths=ref_paths,
+                    prompt=final_prompt,
+                    out_path=clip_dir,
+                    task_id=task_id,
+                )
 
-                real_clip_path = await create_video_grok(context, job, cancel_event, duration=grok_duration, quality=quality)
+                def _cancel_check():
+                    return _grok_is_cancelled(task_id, cancel_event)
+
+                real_clip_path = await create_video_grok(
+                    context,
+                    job,
+                    cancel_event,
+                    duration=grok_duration,
+                    quality=quality,
+                    cancel_check=_cancel_check,
+                )
                 
                 # Fix 2 & 3: Check real_clip_path and verify file size
                 if not real_clip_path or not os.path.exists(real_clip_path):
@@ -204,7 +253,7 @@ async def _run_one_video_task(
             pass
 
         # Final checks before merging
-        if is_video_task_cancelled(task_id) or (cancel_event and cancel_event.is_set()):
+        if _grok_is_cancelled(task_id, cancel_event):
             update_task_status(task_id, "cancelled", error="Đã hủy")
             # Đóng tab và xóa thư mục khi hủy ở giai đoạn cuối
             try:
@@ -275,6 +324,7 @@ async def _run_one_video_task(
         return True
 
     except asyncio.CancelledError:
+        update_task_status(task_id, "cancelled", error="Đã hủy")
         raise
     except Exception as e:
         update_task_status(task_id, "failed", error=str(e))

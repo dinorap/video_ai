@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Callable
 import shutil
 
 
@@ -15,6 +15,33 @@ GROK_ACCOUNT_LIMIT_MESSAGE = (
 
 class GrokAccountLimitError(Exception):
     """Grok trả error code 8 / heavy usage — cần đổi tài khoản."""
+
+
+def _grok_should_cancel(
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+) -> bool:
+    if cancel_check is not None:
+        try:
+            if cancel_check():
+                return True
+        except Exception:
+            pass
+    if cancel_event is not None and getattr(cancel_event, "is_set", None):
+        try:
+            if cancel_event.is_set():
+                return True
+        except Exception:
+            pass
+    return False
+
+
+async def _grok_raise_if_cancelled(
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+) -> None:
+    if _grok_should_cancel(cancel_check, cancel_event):
+        raise asyncio.CancelledError()
 
 
 def _is_grok_usage_limit_payload(data) -> bool:
@@ -81,10 +108,17 @@ async def _raise_if_grok_limit(holder: dict) -> None:
         raise GrokAccountLimitError(str(msg))
 
 
-async def _wait_after_submit(page, holder: dict, timeout_s: float = 45.0) -> None:
+async def _wait_after_submit(
+    page,
+    holder: dict,
+    timeout_s: float = 45.0,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+) -> None:
     """Chờ redirect/video hoặc phát hiện lỗi giới hạn từ API."""
     deadline = asyncio.get_event_loop().time() + float(timeout_s)
     while asyncio.get_event_loop().time() < deadline:
+        await _grok_raise_if_cancelled(cancel_check, cancel_event)
         await _raise_if_grok_limit(holder)
         try:
             u = str(page.url or "")
@@ -137,6 +171,7 @@ class VideoJob:
     prompt: str
     out_path: str
     task_id: str = ''
+    image_paths: Optional[List[str]] = None
 
 
 _ACTIVE_VIDEO_PAGES = {}
@@ -203,22 +238,31 @@ async def _click_empty_area(page):
         pass
 
 
-async def _strict_wait_creating_overlay_disappear(page, timeout_s=240):
+async def _strict_wait_creating_overlay_disappear(
+    page,
+    timeout_s=240,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+):
     overlay = page.locator(SELECTOR_VIDEO_CREATING_OVERLAY)
     try:
-        # Chờ nó xuất hiện trước (nếu có)
         try:
             await overlay.first.wait_for(state="visible", timeout=8000)
         except Exception:
             pass
-        
-        # Sau đó chờ nó biến mất
-        await overlay.first.wait_for(state="hidden", timeout=timeout_s * 1000)
     except Exception:
+        pass
+
+    deadline = asyncio.get_event_loop().time() + float(timeout_s)
+    while asyncio.get_event_loop().time() < deadline:
+        await _grok_raise_if_cancelled(cancel_check, cancel_event)
         try:
-            await overlay.first.wait_for(state="detached", timeout=8000)
+            visible = await overlay.first.is_visible()
+            if not visible:
+                return
         except Exception:
-            pass
+            return
+        await asyncio.sleep(0.5)
 
 
 def _looks_like_mp4(path: str) -> bool:
@@ -457,12 +501,21 @@ async def _wait_for_new_video_in_folder(folder: str, before: set, timeout_s: flo
 # DOWNLOAD (GIỐNG 100% Grok.cs)
 # =========================
 
-async def _wait_file_stable_pro(path, min_bytes=200_000, stable_ticks=2, tick_ms=350, timeout_s=120.0):
+async def _wait_file_stable_pro(
+    path,
+    min_bytes=200_000,
+    stable_ticks=2,
+    tick_ms=350,
+    timeout_s=120.0,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+):
     last_len = -1
     stable = 0
     deadline = asyncio.get_event_loop().time() + float(timeout_s)
 
     while asyncio.get_event_loop().time() < deadline:
+        await _grok_raise_if_cancelled(cancel_check, cancel_event)
         if not os.path.exists(path):
             await asyncio.sleep(tick_ms / 1000)
             continue
@@ -484,7 +537,13 @@ async def _wait_file_stable_pro(path, min_bytes=200_000, stable_ticks=2, tick_ms
     return False
 
 
-async def download_by_click_save_as(page, out_path, timeout_ms=240000):
+async def download_by_click_save_as(
+    page,
+    out_path,
+    timeout_ms=240000,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    cancel_event=None,
+):
     out_path = str(out_path or '').strip()
     if not out_path:
         raise ValueError('Missing out_path')
@@ -501,13 +560,17 @@ async def download_by_click_save_as(page, out_path, timeout_ms=240000):
     ]
 
     # 1. Wait for overlay to disappear (Strict like C#)
-    await _strict_wait_creating_overlay_disappear(page, timeout_s=240)
-    await asyncio.sleep(1.0) # StepDelayAsync in C#
+    await _strict_wait_creating_overlay_disappear(
+        page, timeout_s=240, cancel_check=cancel_check, cancel_event=cancel_event
+    )
+    await _grok_raise_if_cancelled(cancel_check, cancel_event)
+    await asyncio.sleep(1.0)  # StepDelayAsync in C#
 
     # 2. Find download button
     chosen = None
     find_deadline = asyncio.get_event_loop().time() + 25
     while asyncio.get_event_loop().time() < find_deadline and not chosen:
+        await _grok_raise_if_cancelled(cancel_check, cancel_event)
         for sel in candidate_selectors:
             try:
                 loc = page.locator(sel).first
@@ -542,7 +605,12 @@ async def download_by_click_save_as(page, out_path, timeout_ms=240000):
     # 4. Save and Verify (Like C#)
     await download.save_as(final_path)
 
-    is_stable = await _wait_file_stable_pro(final_path, min_bytes=200_000)
+    is_stable = await _wait_file_stable_pro(
+        final_path,
+        min_bytes=200_000,
+        cancel_check=cancel_check,
+        cancel_event=cancel_event,
+    )
     if is_stable and _looks_like_mp4(final_path):
         return final_path
 
@@ -553,23 +621,32 @@ async def download_by_click_save_as(page, out_path, timeout_ms=240000):
 # CREATE VIDEO
 # =========================
 
-async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s=420, duration='6s', quality='720p'):
+async def create_video_grok(
+    context,
+    job: VideoJob,
+    cancel_event=None,
+    timeout_s=420,
+    duration='6s',
+    quality='720p',
+    cancel_check: Optional[Callable[[], bool]] = None,
+):
 
+    extra_paths = getattr(job, 'image_paths', None)
+    paths: List[str] = []
+    if isinstance(extra_paths, list) and extra_paths:
+        paths = [str(p).strip() for p in extra_paths if p and os.path.exists(str(p))]
     img = str(getattr(job, 'image_path', '') or '').strip()
+    if not paths and img and os.path.exists(img):
+        paths = [img]
     pr = str(getattr(job, 'prompt', '') or '').strip()
-    if not pr or not img or (not os.path.exists(img)):
+    if not pr or not paths:
         raise ValueError("Missing prompt/image for video job")
 
     tid = str(getattr(job, 'task_id', '') or '').strip()
     last_exc = None
 
     for attempt in range(1, 4):
-        if cancel_event is not None and getattr(cancel_event, 'is_set', None):
-            try:
-                if cancel_event.is_set():
-                    raise asyncio.CancelledError()
-            except Exception:
-                pass
+        await _grok_raise_if_cancelled(cancel_check, cancel_event)
 
         page = await context.new_page()
         limit_holder: Optional[dict] = None
@@ -580,11 +657,12 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
             limit_holder = _attach_grok_limit_listener(page)
 
             await page.goto("https://grok.com/imagine", timeout=60000)
+            await _grok_raise_if_cancelled(cancel_check, cancel_event)
             await _raise_if_grok_limit(limit_holder)
 
             upload = page.locator(UPLOAD_INPUT).first
             await upload.wait_for(state="attached", timeout=30000)
-            await upload.set_input_files(img)
+            await upload.set_input_files(paths if len(paths) > 1 else paths[0])
 
             await asyncio.sleep(2)
 
@@ -653,7 +731,13 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
             await editor.press("Enter")
             print("✅ Pressed Enter to submit")
 
-            await _wait_after_submit(page, limit_holder, timeout_s=45.0)
+            await _wait_after_submit(
+                page,
+                limit_holder,
+                timeout_s=45.0,
+                cancel_check=cancel_check,
+                cancel_event=cancel_event,
+            )
 
             try:
                 u = str(page.url or '')
@@ -671,20 +755,45 @@ async def create_video_grok(context, job: VideoJob, cancel_event=None, timeout_s
 
             await asyncio.sleep(2)
             await _raise_if_grok_limit(limit_holder)
+            await _grok_raise_if_cancelled(cancel_check, cancel_event)
 
             video = page.locator(SELECTOR_RESULT_VIDEO).first
-            await video.wait_for(state="visible", timeout=int(timeout_s * 1000))
+            wait_deadline = asyncio.get_event_loop().time() + float(timeout_s)
+            while asyncio.get_event_loop().time() < wait_deadline:
+                await _grok_raise_if_cancelled(cancel_check, cancel_event)
+                try:
+                    await video.wait_for(state="visible", timeout=2000)
+                    break
+                except Exception:
+                    await asyncio.sleep(0.5)
+            else:
+                raise TimeoutError(f"Video không hiện sau {timeout_s}s")
 
-            await page.wait_for_function(
-                """() => {
-                  const v = document.querySelector('video[src]');
-                  return !!(v && v.readyState >= 3 && v.src && v.src.length > 50);
-                }""",
-                timeout=60000,
-            )
+            ready_deadline = asyncio.get_event_loop().time() + 60.0
+            while asyncio.get_event_loop().time() < ready_deadline:
+                await _grok_raise_if_cancelled(cancel_check, cancel_event)
+                try:
+                    ready = await page.evaluate(
+                        """() => {
+                          const v = document.querySelector('video[src]');
+                          return !!(v && v.readyState >= 3 && v.src && v.src.length > 50);
+                        }"""
+                    )
+                    if ready:
+                        break
+                except Exception:
+                    pass
+                await asyncio.sleep(0.5)
+            else:
+                raise TimeoutError("Video chưa sẵn sàng để tải")
 
             await asyncio.sleep(1)
-            result_path = await download_by_click_save_as(page, job.out_path)
+            result_path = await download_by_click_save_as(
+                page,
+                job.out_path,
+                cancel_check=cancel_check,
+                cancel_event=cancel_event,
+            )
             return result_path
 
         except asyncio.CancelledError:

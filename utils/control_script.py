@@ -211,6 +211,14 @@ def load_script_handler():
             content = content[1:]
         
         scenes = json.loads(content)
+        try:
+            from utils.video_reference_prompts import strip_legacy_reference_block
+            if isinstance(scenes, list):
+                for sc in scenes:
+                    if isinstance(sc, dict) and sc.get("prompt"):
+                        sc["prompt"] = strip_legacy_reference_block(str(sc.get("prompt") or ""))
+        except Exception:
+            pass
         return jsonify({"ok": True, "scenes": scenes})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
