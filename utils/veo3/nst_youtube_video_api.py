@@ -782,7 +782,7 @@ async def generate_youtube_videos_via_api_for_page(
                     account_type=account_type,
                 )
                 print(f"[VEO Video API] [{ptag}] 🚀 Gửi request tạo video cho scene={scene_id}...")
-            max_create_retries = 1
+            max_create_retries = 3  # Tăng retry lên 3 lần cho các lỗi 500, 403, 429
             create_res: Optional[Dict[str, Any]] = None
 
             for attempt in range(max_create_retries + 1):
@@ -815,12 +815,13 @@ async def generate_youtube_videos_via_api_for_page(
                 if create_res.get("ok"):
                     break
 
-                # 401: access_token sai / hết hạn → refresh auth rồi retry (tối đa 1 lần)
+                # Parse status code
                 try:
                     status_code = int(create_res.get("status") or 0)
                 except Exception:
                     status_code = 0
 
+                # 401: access_token sai / hết hạn → refresh auth rồi retry
                 if status_code == 401 and attempt < max_create_retries:
                     print(
                         f"[VEO Video API] [{ptag}] 🔑 scene={scene_id} HTTP 401 khi create video, "
@@ -830,11 +831,54 @@ async def generate_youtube_videos_via_api_for_page(
                     await asyncio.sleep(2)
                     continue
 
+                # 500: Internal Server Error → retry với delay tăng dần
+                if status_code == 500 and attempt < max_create_retries:
+                    wait_time = (attempt + 1) * 3  # 3, 6, 9 giây
+                    print(
+                        f"[VEO Video API] [{ptag}] 🔄 scene={scene_id} HTTP 500 (Internal Error), "
+                        f"retry lần {attempt + 2} sau {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+
+                # 403: Forbidden → retry với delay (có thể do rate limit hoặc captcha)
+                if status_code == 403 and attempt < max_create_retries:
+                    wait_time = (attempt + 1) * 4  # 4, 8, 12 giây
+                    print(
+                        f"[VEO Video API] [{ptag}] 🔄 scene={scene_id} HTTP 403 (Forbidden), "
+                        f"retry lần {attempt + 2} sau {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+
+                # 429: Too Many Requests → retry với delay dài hơn
+                if status_code == 429 and attempt < max_create_retries:
+                    wait_time = (attempt + 1) * 5  # 5, 10, 15 giây
+                    print(
+                        f"[VEO Video API] [{ptag}] 🔄 scene={scene_id} HTTP 429 (Rate Limit), "
+                        f"retry lần {attempt + 2} sau {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+
                 # Các lỗi khác: không retry thêm trong vòng lặp này
                 break
 
             if not create_res or not create_res.get("ok"):
                 body_snip = (create_res.get("body") or "")[:400] if create_res else ""
+                status_code = int(create_res.get("status") or 0) if create_res else 0
+                
+                # Tạo thông báo lỗi chi tiết hơn cho các HTTP code cụ thể
+                error_msg = "create_failed"
+                if status_code == 500:
+                    error_msg = f"HTTP 500 Internal Server Error - Veo3 server đang bận. Vui lòng thử lại sau."
+                elif status_code == 403:
+                    error_msg = f"HTTP 403 Forbidden - Có thể bị rate limit hoặc tài khoản hết quyền truy cập."
+                elif status_code == 429:
+                    error_msg = f"HTTP 429 Too Many Requests - Đã gửi quá nhiều yêu cầu. Vui lòng chờ và thử lại."
+                elif status_code == 401:
+                    error_msg = f"HTTP 401 Unauthorized - Token hết hạn. Đã thử refresh nhưng không thành công."
+                
                 print(
                     f"[VEO Video API] [{ptag}] ❌ Create video lỗi: "
                     f"status={create_res.get('status') if create_res else 'N/A'} "
@@ -842,7 +886,7 @@ async def generate_youtube_videos_via_api_for_page(
                 )
                 results[job_id] = {
                     "ok": False,
-                    "error": "create_failed",
+                    "error": error_msg,
                     "status": create_res.get("status") if create_res else None,
                     "body": body_snip,
                     "scene_id": scene_id,

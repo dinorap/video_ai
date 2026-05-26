@@ -1273,6 +1273,31 @@ function closeGrokLimitModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// Hiển thị thông báo lỗi server Veo3 (500, 403, 429)
+function showVeo3ServerErrorModal(title, message) {
+    const modal = document.getElementById('veo3ServerErrorModal');
+    if (!modal) return;
+    
+    const titleEl = document.getElementById('veo3ServerErrorTitle');
+    const messageEl = document.getElementById('veo3ServerErrorMessage');
+    
+    if (titleEl) titleEl.textContent = title || 'Lỗi server Veo3';
+    if (messageEl) {
+        if (typeof message === 'object' && message.innerHTML !== undefined) {
+            messageEl.innerHTML = message.innerHTML;
+        } else {
+            messageEl.innerHTML = message || 'Đã xảy ra lỗi khi kết nối đến server Veo3.';
+        }
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeVeo3ServerErrorModal() {
+    const modal = document.getElementById('veo3ServerErrorModal');
+    if (modal) modal.style.display = 'none';
+}
+
 // Hiển thị hướng dẫn nhanh
 function showQuickGuideModal() {
     const modal = document.getElementById('quickGuideModal');
@@ -1324,6 +1349,7 @@ document.addEventListener('keydown', function(e) {
         closeNetworkErrorModal();
         closeCreationErrorModal();
         closeGrokLimitModal();
+        closeVeo3ServerErrorModal();
         closeQuickGuideModal();
         closeAccountGuideModal();
         closeAiLoginErrorModal();
@@ -1348,6 +1374,8 @@ try {
     window.closeCreationErrorModal = closeCreationErrorModal;
     window.showGrokLimitModal = showGrokLimitModal;
     window.closeGrokLimitModal = closeGrokLimitModal;
+    window.showVeo3ServerErrorModal = showVeo3ServerErrorModal;
+    window.closeVeo3ServerErrorModal = closeVeo3ServerErrorModal;
     window.showQuickGuideModal = showQuickGuideModal;
     window.closeQuickGuideModal = closeQuickGuideModal;
     window.openFullHelpGuide = openFullHelpGuide;
