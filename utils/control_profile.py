@@ -76,17 +76,12 @@ def setup_veo3_profile_with_auth():
         from playwright.async_api import async_playwright
         from utils.veo3.veo_get_token import auto_collect_veo_auth_from_flow
         
-        # Lấy CDP port từ config
-        config_path = str(CONFIG_FILE)
-        cdp_port = 9222
-        try:
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    cfg = json.load(f)
-                    cdp_port = cfg.get('CDP_PORT', 9222)
-        except Exception:
-            pass
-        
+        from utils.cdp_port import load_cdp_port, ensure_chrome_cdp_ready, is_cdp_ready
+
+        cdp_port = load_cdp_port()
+        if not is_cdp_ready(cdp_port):
+            await ensure_chrome_cdp_ready("Veo3", port=cdp_port, max_attempts=3, wait_timeout_s=28.0)
+
         print(f"[Veo3 Setup] 🔌 Kết nối CDP qua port {cdp_port}...")
         
         playwright = None
@@ -253,104 +248,10 @@ class _GlobalBrowser:
         import json
         import sys
 
-        def _port_open(host: str, port: int) -> bool:
-            try:
-                import socket
-                with socket.create_connection((host, port), timeout=0.3):
-                    return True
-            except Exception:
-                return False
+        from utils.cdp_port import load_cdp_port, ensure_chrome_cdp_ready
 
-        def _load_cdp_port_default_9222() -> int:
-            try:
-                cfg_path = str(CONFIG_FILE)
-                if not os.path.exists(cfg_path):
-                    return 9222
-                with open(cfg_path, 'r', encoding='utf-8') as f:
-                    cfg = json.load(f) or {}
-                raw = (cfg.get('CDP_PORT', None) if isinstance(cfg, dict) else None)
-                if raw is None and isinstance(cfg, dict):
-                    raw = cfg.get('cdp_port', None)
-                n = int(str(raw).strip()) if raw is not None else 9222
-                if n < 1 or n > 65535:
-                    return 9222
-                return n
-            except Exception:
-                return 9222
-
-        async def _wait_cdp_ready(port: int, timeout_s: float = 8.0) -> bool:
-            deadline = time.time() + float(timeout_s)
-            while time.time() < deadline:
-                if _port_open("127.0.0.1", int(port)):
-                    return True
-                await asyncio.sleep(0.25)
-            return False
-
-        cdp_port = _load_cdp_port_default_9222()
-        try:
-            self._cdp_port = int(cdp_port)
-        except Exception:
-            self._cdp_port = None
-
-        def _kill_conflicting_profile_chrome() -> None:
-            """Best-effort: if user opened the same PROFILE_DIR manually (no CDP),
-            Chrome will reuse the existing process and ignore our --remote-debugging-port.
-            That makes CDP port unavailable. We must close those processes first.
-            """
-            try:
-                if os.name != 'nt':
-                    return
-                prof_path = os.path.abspath(PROFILE_DIR)
-                prof_match = prof_path.replace('\\', '\\\\')
-                ps_cmd = (
-                    "Get-CimInstance Win32_Process | "
-                    "Where-Object { "
-                    "($_.Name -eq 'chrome.exe') -and "
-                    f"($_.CommandLine -like '*--user-data-dir={prof_match}*') -and "
-                    f"($_.CommandLine -notlike '*--remote-debugging-port={int(cdp_port)}*') "
-                    "} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
-                )
-                subprocess.run(
-                    ["powershell", "-NoProfile", "-Command", ps_cmd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    **_win_subprocess_kwargs(),
-                )
-            except Exception:
-                pass
-
-        def _start_chrome_profile_with_cdp() -> None:
-            chrome = find_chrome()
-            if not chrome:
-                raise RuntimeError("Chrome not found")
-
-            try:
-                os.makedirs(PROFILE_DIR, exist_ok=True)
-            except Exception:
-                pass
-
-            url = _start_url_for_provider(self._provider)
-            print(f"[Browser] Mở Chrome → {url} (provider={self._provider})")
-            proc = subprocess.Popen(
-                [
-                    chrome,
-                    f"--user-data-dir={PROFILE_DIR}",
-                    f"--remote-debugging-port={int(cdp_port)}",
-                    "--remote-debugging-address=127.0.0.1",
-                    # Show Chrome window maximized
-                    "--start-maximized",
-                    "--new-window",
-                    url,
-                ],
-
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-            try:
-                self._spawned_pid = int(getattr(proc, 'pid', None) or 0) or None
-            except Exception:
-                self._spawned_pid = None
+        cdp_port = load_cdp_port()
+        self._cdp_port = int(cdp_port)
 
         # Stop existing playwright if any
         if self._playwright:
@@ -370,19 +271,17 @@ class _GlobalBrowser:
             except Exception:
                 download_dir = None
 
-        # Ensure Chrome profile is running WITH CDP enabled, then connect via CDP.
-        # control_profile.py is responsible for enabling 9222.
-        if not await _wait_cdp_ready(cdp_port, timeout_s=1.0):
-            try:
-                _kill_conflicting_profile_chrome()
-                _start_chrome_profile_with_cdp()
-            except Exception:
-                pass
+        # Đảm bảo Chrome + CDP (retry, đóng Chrome cũ không có --remote-debugging-port).
+        await ensure_chrome_cdp_ready(
+            self._provider,
+            port=cdp_port,
+            max_attempts=3,
+            wait_timeout_s=28.0,
+        )
 
-        if not await _wait_cdp_ready(cdp_port, timeout_s=12.0):
-            raise RuntimeError(f"CDP port {cdp_port} is not available")
-
-        self._browser = await self._playwright.chromium.connect_over_cdp(f'http://127.0.0.1:{int(cdp_port)}', timeout=15000)
+        self._browser = await self._playwright.chromium.connect_over_cdp(
+            f"http://127.0.0.1:{int(cdp_port)}", timeout=20000
+        )
         
         # Fix: Ensure we have a valid context and it's not closed
         if self._browser.contexts and len(self._browser.contexts) > 0:
@@ -479,17 +378,28 @@ class _GlobalBrowser:
 
                 self._provider = provider or self._provider
                 self._download_dir = download_dir
-                self._submit(self._async_init(provider=self._provider, download_dir=self._download_dir), timeout=60)
+                self._submit(self._async_init(provider=self._provider, download_dir=self._download_dir), timeout=150)
                 return
 
             if self._thread and self._thread.is_alive() and self._ready.is_set() and self._init_error:
-                raise self._init_error
+                err_s = str(self._init_error)
+                if "CDP port" in err_s or "CDP" in err_s.lower():
+                    print(f"[Browser] ⚠️ CDP lỗi trước đó — thử khởi động lại Chrome ({err_s})")
+                    try:
+                        self.close_global_browser()
+                    except Exception:
+                        pass
+                    self._thread = None
+                    self._ready.clear()
+                    self._init_error = None
+                else:
+                    raise self._init_error
 
             self._ready.clear()
             self._init_error = None
             self._thread = threading.Thread(target=self._thread_main, args=(provider, download_dir), daemon=True)
             self._thread.start()
-            self._ready.wait(timeout=60)
+            self._ready.wait(timeout=120)
             if self._init_error:
                 raise self._init_error
 

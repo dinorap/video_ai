@@ -2,8 +2,9 @@ import os
 import subprocess
 import shutil
 import sys
+import json
 
-from utils.path_helper import PROFILE_DIR as _PROFILE_DIR_PATH
+from utils.path_helper import PROFILE_DIR as _PROFILE_DIR_PATH, CONFIG_FILE
 
 
 def _win_subprocess_kwargs():
@@ -18,6 +19,19 @@ PROFILE_DIR = str(_PROFILE_DIR_PATH)
 
 
 print(f"DEBUG: Profile directory set to: {PROFILE_DIR}")
+
+
+def _load_cdp_port(default: int = 9222) -> int:
+    try:
+        if os.path.exists(str(CONFIG_FILE)):
+            with open(str(CONFIG_FILE), "r", encoding="utf-8") as f:
+                cfg = json.load(f) or {}
+            n = int(str(cfg.get("CDP_PORT", cfg.get("cdp_port", default))).strip())
+            if 1 <= n <= 65535:
+                return n
+    except Exception:
+        pass
+    return int(default)
 
 
 def find_chrome():
@@ -56,17 +70,21 @@ def setting_grok_profile():
 
     url = "https://grok.com/"
 
+    port = _load_cdp_port()
     proc = subprocess.Popen(
         [
             chrome,
             f"--user-data-dir={PROFILE_DIR}",
+            f"--remote-debugging-port={int(port)}",
+            "--remote-debugging-address=127.0.0.1",
             "--start-maximized",
             "--new-window",
-            url
+            url,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
+        **_win_subprocess_kwargs(),
     )
 
     return proc
@@ -81,17 +99,21 @@ def setting_veo3_profile():
 
     url = "https://labs.google/fx/vi/tools/flow"
 
+    port = _load_cdp_port()
     proc = subprocess.Popen(
         [
             chrome,
             f"--user-data-dir={PROFILE_DIR}",
+            f"--remote-debugging-port={int(port)}",
+            "--remote-debugging-address=127.0.0.1",
             "--start-maximized",
             "--new-window",
-            url
+            url,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
+        **_win_subprocess_kwargs(),
     )
 
     return proc

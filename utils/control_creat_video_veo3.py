@@ -208,17 +208,13 @@ async def create_video_veo3(
             skip_flow_init = False
         
         if not skip_flow_init:
-            # 3. Lấy CDP port từ config
-            config_path = CONFIG_FILE_PATH
-            cdp_port = 9222
-            try:
-                if os.path.exists(config_path):
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        cfg = json.load(f)
-                        cdp_port = cfg.get('CDP_PORT', 9222)
-            except Exception:
-                pass
-            
+            from utils.cdp_port import load_cdp_port, ensure_chrome_cdp_ready, is_cdp_ready
+
+            cdp_port = load_cdp_port()
+            if not is_cdp_ready(cdp_port):
+                print(f"[Veo3 Video] ⚠️ CDP port {cdp_port} chưa sẵn sàng — đang khởi động lại Chrome...")
+                await ensure_chrome_cdp_ready("Veo3", port=cdp_port, max_attempts=3, wait_timeout_s=28.0)
+
             ws_endpoint = f"http://127.0.0.1:{cdp_port}"
             print(f"[Veo3 Video] 🔌 CDP endpoint: {ws_endpoint}")
             
@@ -597,17 +593,13 @@ async def run_video_tasks_veo3(
     auth_data = None
     
     try:
-        # 1. Lấy CDP port từ config
-        config_path = CONFIG_FILE_PATH
-        cdp_port = 9222
-        try:
-            if os.path.exists(config_path):
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    cfg = json.load(f)
-                    cdp_port = cfg.get('CDP_PORT', 9222)
-        except Exception:
-            pass
-        
+        from utils.cdp_port import load_cdp_port, ensure_chrome_cdp_ready, is_cdp_ready
+
+        cdp_port = load_cdp_port()
+        if not is_cdp_ready(cdp_port):
+            print(f"[Veo3 Video Batch] ⚠️ CDP port {cdp_port} chưa sẵn sàng — đang khởi động lại Chrome...")
+            await ensure_chrome_cdp_ready("Veo3", port=cdp_port, max_attempts=3, wait_timeout_s=28.0)
+
         ws_endpoint = f"http://127.0.0.1:{cdp_port}"
         print(f"[Veo3 Video Batch] 🔌 CDP endpoint: {ws_endpoint}")
         

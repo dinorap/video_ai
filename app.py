@@ -2147,6 +2147,50 @@ def cancel_create_images_batch():
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+@app.route('/cancel_image_task', methods=['POST'])
+def cancel_image_task():
+    """
+    Hủy 1 task tạo ảnh (nút Hủy từng form).
+    Frontend đang gọi endpoint này trong `templaces/js/tao_anh.js`.
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        task_id = str(payload.get('task_id') or '').strip()
+        if not task_id:
+            return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
+
+        # Tìm batch Veo3 chứa task_id và set cancel_event.
+        cancelled = False
+        with _ASYNC_IMAGE_BATCHES_LOCK:
+            for _, b in (_ASYNC_IMAGE_BATCHES or {}).items():
+                try:
+                    provider = str((b or {}).get('provider') or '')
+                    if provider.lower() != 'veo3':
+                        continue
+                    mappings = (b or {}).get('mapping') or []
+                    if any(str(m.get('task_id') or '').strip() == task_id for m in mappings if isinstance(m, dict)):
+                        ce = (b or {}).get('cancel_event')
+                        if ce is not None and getattr(ce, 'set', None):
+                            ce.set()
+                        cancelled = True
+                        break
+                except Exception:
+                    continue
+
+        # Mark UI task status best-effort (giống cancel_create_images_batch).
+        if cancelled:
+            try:
+                _mark_tasks_cancelled_best_effort([task_id])
+            except Exception:
+                pass
+            return jsonify({'ok': True})
+
+        # Không tìm thấy batch: vẫn trả ok để UI dừng polling (task có thể đã xong).
+        return jsonify({'ok': True, 'warning': 'task_not_found_or_already_finished'})
+    except Exception as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
 @app.route('/client_ping', methods=['POST'])
 def client_ping():
     """Client heartbeat from the UI (dùng cho watchdog tự thoát khi chạy EXE)."""
