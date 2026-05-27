@@ -580,7 +580,7 @@
                 <h3>5. Cách Clone Video</h3>
                 <p>
                     Vào tab <b>Clone Video</b>, bấm <b>Chọn video</b> để đưa video mẫu vào app.
-                    Chọn ngôn ngữ, loại sản phẩm, model xử lý và nhập API key nếu cần.
+                    Chọn ngôn ngữ, loại sản phẩm, model xử lý và nhập API key (truy cập gemini api key để lấy).
                 </p>
                 <p>
                     Sau đó bấm <b>Bắt đầu</b> để app phân tích hoặc tạo kịch bản theo video mẫu.
@@ -611,6 +611,90 @@
                     Sau khi nhập đủ nội dung, bấm <b>Bắt đầu</b>. Khi video tạo xong, kiểm tra kết quả rồi bấm
                     <b>Lưu</b> để chuyển video hoàn chỉnh về thư mục kết quả.
                 </p>
+            </div>
+
+            <div class="help-section">
+                <h3>7.1. Hướng dẫn chọn Ảnh tham chiếu cho Video</h3>
+                <p>
+                    Khi tạo video Veo3, bạn có thể chọn ảnh tham chiếu theo <b>2 chế độ</b>:
+                </p>
+
+                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin: 12px 0;">
+                    <h4 style="margin: 0 0 8px 0; color: #4fc3f7;">
+                        <i class="fas fa-layer-group"></i> Chế độ 1: Ảnh kết hợp (SP + Nhân vật)
+                    </h4>
+                    <p style="margin: 0 0 10px 0; font-size: 13px;">
+                        <b>Có thể chọn 1 hoặc 2 ảnh riêng biệt:</b>
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                        <li><b>Ảnh sản phẩm:</b> Ảnh SP để AI học hình dáng, màu sắc, kết cấu sản phẩm</li>
+                        <li><b>Ảnh nhân vật:</b> Ảnh người để AI học khuôn mặt, vóc dáng, kiểu tóc</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #aaa;">
+                        <i class="fas fa-lightbulb" style="color: #ffc107;"></i> 
+                        <b>Mẹo:</b> Nên dùng chế độ này khi muốn ghép sản phẩm vào nhân vật có sẵn.
+                    </p>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin: 12px 0;">
+                    <h4 style="margin: 0 0 8px 0; color: #81c784;">
+                        <i class="fas fa-image"></i> Chế độ 2: Ảnh đơn (Ảnh SP + Nhân vật)
+                    </h4>
+                    <p style="margin: 0 0 10px 0; font-size: 13px;">
+                        <b>Chỉ chọn 1 ảnh duy nhất chứa cả sản phẩm và nhân vật:</b>
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                        <li><b>Ảnh SP + Nhân vật:</b> Một ảnh chứa đầy đủ thông tin về sản phẩm và nhân vật</li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #aaa;">
+                        <i class="fas fa-lightbulb" style="color: #ffc107;"></i> 
+                        <b>Mẹo:</b> Dùng khi bạn có sẵn ảnh chụp sản phẩm đang được mặc bởi nhân vật.
+                    </p>
+                </div>
+
+                <div style="background: rgba(244,67,54,0.15); border-radius: 8px; padding: 12px; margin: 12px 0; border-left: 4px solid #f44336;">
+                    <h4 style="margin: 0 0 8px 0; color: #ef5350;">
+                        <i class="fas fa-exclamation-triangle"></i> Quy tắc quan trọng khi chọn ảnh
+                    </h4>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #ffcdd2;">
+                        <li style="margin-bottom: 6px;">
+                            <b>Nếu chọn Ảnh sản phẩm (1) →</b> Có thể thêm Ảnh nhân vật (2) để kết hợp
+                        </li>
+                        <li style="margin-bottom: 6px;">
+                            <b>Nếu chọn Ảnh nhân vật (2) →</b> Có thể thêm Ảnh sản phẩm (1) để kết hợp
+                        </li>
+                        <li style="margin-bottom: 6px;">
+                            <b>Nếu chọn Ảnh SP + Nhân vật (3) →</b> <span style="color: #ff8a80;"><b>KHÔNG</b> thể chọn thêm Ảnh sản phẩm (1) hoặc Ảnh nhân vật (2)</span>
+                        </li>
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #ffcdd2;">
+                        <i class="fas fa-info-circle"></i> 
+                        Khi chọn Ảnh SP + Nhân vật, hai ô kia sẽ tự động bị vô hiệu hóa để đảm bảo tính nhất quán của video.
+                    </p>
+                </div>
+
+                <div style="background: rgba(76,175,80,0.1); border-radius: 8px; padding: 12px; margin: 12px 0; border-left: 4px solid #4caf50;">
+                    <h4 style="margin: 0 0 8px 0; color: #81c784;">
+                        <i class="fas fa-play-circle"></i> Ví dụ thực tế
+                    </h4>
+                    <p style="margin: 0 0 8px 0; font-size: 13px;"><b>Ví dụ 1: Mặc áo thun lên người mẫu</b></p>
+                    <ul style="margin: 0 0 12px 20px; font-size: 12px;">
+                        <li>Chọn Ảnh sản phẩm (1): Ảnh áo thun trắng</li>
+                        <li>Chọn Ảnh nhân vật (2): Ảnh người mẫu</li>
+                        <li>→ Video sẽ ghép áo thun lên người mẫu</li>
+                    </ul>
+                    <p style="margin: 0 0 8px 0; font-size: 13px;"><b>Ví dụ 2: Video từ 1 ảnh có sẵn</b></p>
+                    <ul style="margin: 0 0 12px 20px; font-size: 12px;">
+                        <li>Chọn Ảnh SP + Nhân vật (3): Ảnh chụp người mẫu đang mặc áo thun</li>
+                        <li>→ Video sẽ tạo animation từ ảnh gốc</li>
+                    </ul>
+                    <p style="margin: 0 0 8px 0; font-size: 13px;"><b>Ví dụ 3: Video thời trang 3 cảnh</b></p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+                        <li>Cảnh 1: Ảnh sản phẩm + Ảnh nhân vật → Nhân vật mặc sản phẩm đi bộ</li>
+                        <li>Cảnh 2: Ảnh sản phẩm + Ảnh nhân vật → Nhân vật xoay 360 độ</li>
+                        <li>Cảnh 3: Ảnh SP + Nhân vật → Video từ ảnh gốc</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="help-section">
