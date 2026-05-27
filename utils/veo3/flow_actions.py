@@ -287,6 +287,30 @@ async def wait_for_project_ready(page: Page, timeout_ms: int = 45_000) -> None:
     raise Exception("Timeout: Không thấy ô nhập prompt sau khi tạo dự án")
 
 
+_JS_CHECK_AND_DISABLE_AGENT = r"""
+async function () {
+    const agentBtn = [...document.querySelectorAll('button')]
+        .find(b => b.querySelector('.content')?.textContent.trim() === 'Tác nhân');
+
+    if (!agentBtn) {
+        return { ok: false, reason: 'Không tìm thấy nút "Tác nhân".' };
+    }
+
+    if (agentBtn.getAttribute('aria-pressed') === 'true') {
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+            agentBtn.dispatchEvent(new MouseEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            }));
+        });
+        return { ok: true, reason: 'Tác nhân đang bật -> Đã bấm tắt thành công.' };
+    } else {
+        return { ok: true, reason: 'Tác nhân chưa bật -> Không cần bấm.' };
+    }
+}
+"""
+
 _JS_OPEN_SETTINGS_AND_BATCH = r"""
 async function () {
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -326,6 +350,25 @@ async function () {
 """
 
 
+async def check_and_disable_agent_button(page: Page) -> bool:
+    """
+    Kiểm tra và tắt nút "Tác nhân" (Agent) nếu đang bật.
+    Phải chạy TRƯỚC khi setup batch settings để các tùy chọn khác hiện ra.
+    """
+    try:
+        result = await page.evaluate(_JS_CHECK_AND_DISABLE_AGENT)
+        if result and result.get("ok"):
+            reason = result.get("reason", "")
+            print(f"[Flow Actions] ✅ {reason}")
+            return True
+        reason = (result or {}).get("reason") if isinstance(result, dict) else "Không rõ lý do."
+        print(f"[Flow Actions] ⚠️ Kiểm tra nút Tác nhân: {reason}")
+        return False
+    except Exception as e:
+        print(f"[Flow Actions] ⚠️ Lỗi kiểm tra nút Tác nhân: {e}")
+        return False
+
+
 async def select_batch_tab_size_medium(page: Page) -> bool:
     """
     Trong dialog Cài đặt > Batch: chọn nhóm kích thước **M** (S / M / L).
@@ -357,13 +400,23 @@ async def select_batch_tab_size_medium(page: Page) -> bool:
 
 async def open_settings_and_select_batch(page: Page) -> bool:
     """
-    Chạy ngay sau khi tạo project: mở Cài đặt và chọn tab Batch, rồi chọn cỡ M trong nhóm S/M/L.
+    Chạy ngay sau khi tạo project: 
+    1. Kiểm tra và tắt nút "Tác nhân" nếu đang bật (để các tùy chọn khác hiện ra)
+    2. Mở Cài đặt và chọn tab Batch
+    3. Chọn cỡ M trong nhóm S/M/L
     """
     try:
+        # Bước 1: Kiểm tra và tắt nút "Tác nhân" nếu đang bật
+        await check_and_disable_agent_button(page)
+        await asyncio.sleep(random.uniform(0.15, 0.3))
+        
+        # Bước 2: Mở Cài đặt và chọn tab Batch
         result = await page.evaluate(_JS_OPEN_SETTINGS_AND_BATCH)
         if result and result.get("ok"):
             print("[Flow Actions] ✅ Đã mở Cài đặt -> tab Batch.")
             await asyncio.sleep(random.uniform(0.06, 0.14))
+            
+            # Bước 3: Chọn kích thước M
             await select_batch_tab_size_medium(page)
             return True
         reason = (result or {}).get("reason") if isinstance(result, dict) else "Không rõ lý do."
