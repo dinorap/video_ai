@@ -1,51 +1,46 @@
 .video-gen-wrapper{
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:10px;
 }
 
 .video-gen-wrapper .header-actions{
-    position: sticky;
-    top: 0;
-    z-index: 50;
     display:flex;
-    gap:10px;
+    gap:8px;
     flex-wrap: wrap;
-    width: min(100%, 520px);
-    padding: 10px 0 12px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.20), transparent);
-    backdrop-filter: blur(10px);
+    justify-content: flex-end;
 }
-.video-gen-wrapper .btn-header{ min-width: 120px; flex: 1; }
+
+.video-gen-wrapper .btn-header{ min-width: 100px; }
 
 .display-workspace{
     display:none;
     flex-direction:column;
-    gap:12px;
-    padding:14px;
+    gap:10px;
+    padding:12px;
     overflow-x:auto;
     border:1px dashed var(--border-color);
-    border-radius:14px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--card-bg);
+    border-radius:10px;
+    background: rgba(0, 0, 0, 0.15);
 }
 .display-workspace.is-visible{ display:flex; }
 
 .video-row{
     display:grid;
-    grid-template-columns: 180px 1fr 200px 160px;
-    gap:12px;
+    grid-template-columns: 160px 1fr 180px 140px;
+    gap:10px;
     align-items:stretch;
-    min-width:820px;
-    padding:14px;
+    min-width: 800px;
+    padding:12px;
     border:1px solid var(--border-color);
-    border-radius:14px;
-    background: rgba(0,0,0,0.18);
+    border-radius:12px;
+    background: rgba(0,0,0,0.15);
 }
 
 .video-row .video-col {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .video-row .video-col.input {
@@ -54,56 +49,56 @@
 
 .video-row .video-col.prompts {
     background: rgba(0,0,0,0.2);
-    border-radius: 10px;
-    padding: 10px;
-    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
 }
 
 .video-row .prompts-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     color: var(--text-soft);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.05em;
     margin-bottom: 4px;
 }
 
 .video-row .scene-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 180px;
+    gap: 4px;
+    max-height: 160px;
     overflow-y: auto;
 }
 
 .video-row .scene-item {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 6px 8px;
     background: rgba(0,0,0,0.25);
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
 }
 
 .video-row .scene-num {
-    flex: 0 0 26px;
-    width: 26px;
-    height: 26px;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--accent-soft);
     border-radius: 50%;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 900;
     color: var(--accent);
 }
 
 .video-row .scene-prompt {
     flex: 1;
-    font-size: 11px;
-    color: rgba(255,255,255,0.8);
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
     line-height: 1.4;
     word-break: break-word;
 }
@@ -114,7 +109,7 @@
 }
 
 .video-row .scene-status {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--accent);
     margin-top: 4px;
@@ -123,18 +118,16 @@
 
 .video-row .video-col.preview {
     position: relative;
-    min-height: 180px;
-    border: 2px dashed rgba(0,230,118,0.25);
-    border-radius: 12px;
+    min-height: 160px;
+    border: 2px dashed rgba(0,230,118,0.2);
+    border-radius: 10px;
     background: rgba(0,0,0,0.15);
     cursor: pointer;
     overflow: hidden;
-    transition: all 0.25s ease;
 }
 
 .video-row .video-col.preview:hover {
-    border-color: rgba(0,230,118,0.5);
-    background: rgba(0,230,118,0.03);
+    border-color: rgba(0,230,118,0.4);
 }
 
 .video-row .video-col.preview video,
@@ -151,14 +144,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     color: rgba(255,255,255,0.3);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
 }
 
 .video-row .preview-placeholder i {
-    font-size: 32px;
+    font-size: 28px;
     opacity: 0.4;
 }
 
@@ -178,14 +171,13 @@
 }
 
 .video-row .play-btn {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: rgba(0,230,118,0.9);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 20px rgba(0,230,118,0.5);
     border: 2px solid rgba(255,255,255,0.3);
 }
 
@@ -193,32 +185,27 @@
     content: "";
     width: 0;
     height: 0;
-    border-top: 9px solid transparent;
-    border-bottom: 9px solid transparent;
-    border-left: 14px solid #fff;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 12px solid #fff;
     margin-left: 3px;
 }
 
 .video-row .video-col.actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     justify-content: center;
 }
 
 .video-row .btn-row {
     width: 100%;
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 900;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 800;
     cursor: pointer;
     border: none;
-    transition: all 0.2s ease;
-}
-
-.video-row .btn-row:hover {
-    transform: translateY(-1px);
 }
 
 .video-row .btn-setting {
@@ -230,7 +217,6 @@
 .video-row .btn-create {
     background: var(--gradient-btn);
     color: #fff;
-    box-shadow: 0 0 12px var(--accent-shadow);
 }
 
 .video-row .btn-delete {
@@ -240,23 +226,21 @@
 }
 
 .video-row .result-link {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     text-align: center;
-    margin-top: 2px;
 }
 
 .video-row .result-link .remerge-btn {
     width: 100%;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 6px;
+    border-radius: 6px;
     background: rgba(255,255,255,0.06);
     color: var(--text-main);
     border: 1px solid var(--border-color);
-    font-size: 11px;
-    font-weight: 900;
+    font-size: 10px;
+    font-weight: 800;
     cursor: pointer;
-    transition: all 0.2s ease;
 }
 
 .video-row .result-link .remerge-btn:hover {
