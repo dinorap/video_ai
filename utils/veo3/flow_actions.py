@@ -438,6 +438,78 @@ async def is_flow_setup_ready(page: Page) -> bool:
         return False
 
 
+JS_CLICK_CLOSE_AFTER_CREATE_PROJECT = r"""
+() => {
+    const btn = [...document.querySelectorAll("button")]
+        .find(b => b.innerText.includes("close"));
+    if (!btn) {
+        return { ok: false, clicked: false };
+    }
+    btn.click();
+    return { ok: true, clicked: true };
+}
+"""
+
+
+_JS_CLOSE_BUTTON_VISIBLE = r"""
+() => {
+    const btn = [...document.querySelectorAll("button")]
+        .find(b => {
+            if (!b.innerText.includes("close")) return false;
+            const r = b.getBoundingClientRect();
+            const st = window.getComputedStyle(b);
+            return r.width > 0 && r.height > 0
+                && st.visibility !== "hidden"
+                && st.display !== "none";
+        });
+    return !!btn;
+}
+"""
+
+
+async def click_close_after_create_project(
+    page: Page,
+    timeout_ms: int = 8_000,
+    *,
+    min_settle_s: float = 1.5,
+) -> bool:
+    """
+    Đợi nút close (icon) visible rồi bấm — poll tới hết timeout.
+    min_settle_s: chờ tối thiểu sau thao tác trước (vd. vừa bấm «Tạo dự án»).
+    """
+    if min_settle_s > 0:
+        await asyncio.sleep(random.uniform(min_settle_s, min_settle_s + 1.0))
+
+    close_btn = page.locator("button").filter(has=page.locator("i", has_text="close")).first
+    deadline = time.monotonic() + max(0.5, timeout_ms / 1000.0)
+
+    while time.monotonic() < deadline:
+        try:
+            if not await page.evaluate(_JS_CLOSE_BUTTON_VISIBLE):
+                await asyncio.sleep(0.28)
+                continue
+
+            try:
+                await close_btn.wait_for(state="visible", timeout=1_500)
+                await close_btn.scroll_into_view_if_needed()
+                await close_btn.click(delay=random.randint(80, 180), force=True)
+                print("[Flow Actions] ✅ Đã bấm nút close sau tạo dự án.")
+                await asyncio.sleep(random.uniform(0.15, 0.35))
+                return True
+            except Exception:
+                result = await page.evaluate(JS_CLICK_CLOSE_AFTER_CREATE_PROJECT)
+                if isinstance(result, dict) and result.get("clicked"):
+                    print("[Flow Actions] ✅ Đã bấm nút close sau tạo dự án (JS).")
+                    await asyncio.sleep(random.uniform(0.15, 0.35))
+                    return True
+        except Exception:
+            pass
+        await asyncio.sleep(0.28)
+
+    print("[Flow Actions] ℹ️ Không thấy nút close sau tạo dự án (có thể không có dialog).")
+    return False
+
+
 async def wait_and_click_project_button(
     page: Page,
     timeout_ms: int = 30_000,
@@ -482,6 +554,9 @@ async def wait_and_click_project_button(
                         continue
                 if not clicked:
                     raise Exception("Không tìm thấy nút tạo dự án (text hoặc icon add_2)")
+
+            # Đóng dialog sau «Tạo dự án» — poll nút close visible (DOM có thể chưa kịp render).
+            await click_close_after_create_project(page)
 
             # ✅ Xác nhận click đã "ăn": phải thấy ô prompt Slate (contenteditable) xuất hiện.
             # Nếu Playwright đơ click, đoạn này sẽ timeout và retry.
