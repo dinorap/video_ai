@@ -208,6 +208,45 @@ function slugifyTabLabel(label) {
 }
 
 
+function getActiveWorkspaceSlug() {
+    const activeTab = document.querySelector('.horizontal-tabs .tab-item.active');
+    return activeTab ? slugifyTabLabel(activeTab.textContent) : '';
+}
+
+const MODEL_OPTIONS_IMAGE = ['Grok (X-AI)', 'Veo3 (Google)'];
+const MODEL_OPTIONS_VIDEO = ['Grok (X-AI)', 'Grok Chain (X-AI)', 'Veo3 (Google)'];
+
+function updateModelSelectForWorkspace(slug) {
+    const modelSelect = document.getElementById('model-select');
+    if (!modelSelect) return;
+
+    const workspace = String(slug || getActiveWorkspaceSlug() || '').trim();
+    const isVideo = workspace === 'tao-video';
+    const options = isVideo ? MODEL_OPTIONS_VIDEO : MODEL_OPTIONS_IMAGE;
+
+    const current = modelSelect.options[modelSelect.selectedIndex]
+        ? String(modelSelect.options[modelSelect.selectedIndex].textContent || '').trim()
+        : '';
+    const preferred = String(
+        (window.configData && window.configData.MODEL_AI) || current || 'Grok (X-AI)'
+    ).trim();
+
+    modelSelect.innerHTML = '';
+    options.forEach((label) => {
+        const opt = document.createElement('option');
+        opt.textContent = label;
+        modelSelect.appendChild(opt);
+    });
+
+    let next = preferred;
+    if (!options.includes(next)) {
+        next = next.toLowerCase().includes('grok') ? 'Grok (X-AI)' : (options[0] || 'Grok (X-AI)');
+    }
+    setSelectByValueOrText(modelSelect, next);
+    toggleGrokDurationVisibility();
+}
+
+
 function initTabBindings() {
     const tabs = document.querySelectorAll('.horizontal-tabs .tab-item');
     if (!tabs || tabs.length === 0) return;
@@ -227,9 +266,12 @@ function initTabBindings() {
 
             await loadWorkspace(page);
 
+            updateModelSelectForWorkspace(slug);
+
             // Chỉ chạy init và loadConfig nếu tab chưa từng được load
             if (!isAlreadyLoaded) {
                 await loadConfig();
+                updateModelSelectForWorkspace(slug);
                 initWorkspaceBindings(slug);
             }
         };
@@ -319,10 +361,12 @@ async function loadConfig() {
             setSelectByValueOrText(sidebarModelSelect, data.MODEL_AI);
         }
 
-        // Model select with ID
+        // Model select with ID — options phụ thuộc tab (Grok Chain chỉ ở Tạo video)
+        updateModelSelectForWorkspace(getActiveWorkspaceSlug());
         const modelSelect = document.getElementById('model-select');
         if (modelSelect) {
             setSelectByValueOrText(modelSelect, data.MODEL_AI);
+            updateModelSelectForWorkspace(getActiveWorkspaceSlug());
         }
 
         const cloneVideoModelSelect = document.getElementById('cloneVideoModelSelect');
@@ -821,6 +865,26 @@ async function loadMusicList() {
     }
 }
 
+function initAudioVolumeBindings() {
+    const musicSlider = document.getElementById('music-volume-input');
+    const videoSlider = document.getElementById('video-audio-volume-input');
+    const musicLabel = document.getElementById('music-volume-label');
+    const videoLabel = document.getElementById('video-audio-volume-label');
+
+    const sync = () => {
+        if (musicSlider && musicLabel) {
+            musicLabel.textContent = `${musicSlider.value}%`;
+        }
+        if (videoSlider && videoLabel) {
+            videoLabel.textContent = `${videoSlider.value}%`;
+        }
+    };
+
+    if (musicSlider) musicSlider.addEventListener('input', sync);
+    if (videoSlider) videoSlider.addEventListener('input', sync);
+    sync();
+}
+
 function initMusicBindings() {
     // Preview music
     const previewBtn = document.querySelector('.btn-preview');
@@ -950,6 +1014,7 @@ function initResultFolderBindings() {
 function toggleGrokDurationVisibility() {
     const modelSelect = document.getElementById('model-select');
     const durationContainer = document.getElementById('grok-duration-container');
+    const grokChainHint = document.getElementById('grok-chain-hint-container');
     const veo3ImageModelContainer = document.getElementById('veo3-image-model-container');
     const veo3VideoQualityContainer = document.getElementById('veo3-video-quality-container');
     const maxTabsContainer = document.getElementById('max-tabs-container');
@@ -959,10 +1024,15 @@ function toggleGrokDurationVisibility() {
 
     const selectedModel = modelSelect.options[modelSelect.selectedIndex].textContent;
     const isGrok = selectedModel && selectedModel.toLowerCase().includes('grok');
+    const isGrokChain = selectedModel && selectedModel.toLowerCase().includes('grok chain');
     const isVeo3 = selectedModel && selectedModel.toLowerCase().includes('veo3');
 
-    // Show/hide duration selector (only for Grok)
+    // Show/hide duration selector (Grok thường + Grok Chain)
     durationContainer.style.display = isGrok ? 'block' : 'none';
+
+    if (grokChainHint) {
+        grokChainHint.style.display = isGrokChain ? 'block' : 'none';
+    }
 
     // Show/hide Veo3 model selectors (only for Veo3)
     if (veo3ImageModelContainer) {
@@ -972,9 +1042,9 @@ function toggleGrokDurationVisibility() {
         veo3VideoQualityContainer.style.display = isVeo3 ? 'block' : 'none';
     }
 
-    // Veo3 không dùng số tab song song (chạy theo luồng riêng)
+    // Veo3 và Grok Chain không dùng số tab song song (chạy tuần tự)
     if (maxTabsContainer) {
-        maxTabsContainer.style.display = isVeo3 ? 'none' : 'block';
+        maxTabsContainer.style.display = (isVeo3 || isGrokChain) ? 'none' : 'block';
     }
 
     // Update quality options based on model
@@ -1041,6 +1111,9 @@ function initSettingsAccountBindings() {
     // Toggle duration visibility when model changes
     modelSelect.onchange = function () {
         toggleGrokDurationVisibility();
+        if (typeof window._refreshVideoSceneBlocksIfOpen === 'function') {
+            window._refreshVideoSceneBlocksIfOpen();
+        }
     };
 
     settingsBtn.onclick = async function () {
@@ -1082,6 +1155,7 @@ window.onload = async function () {
     const activeTab = document.querySelector('.horizontal-tabs .tab-item.active');
     const defaultSlug = activeTab ? slugifyTabLabel(activeTab.textContent) : 'home';
     await loadWorkspace(`${defaultSlug}.html`);
+    updateModelSelectForWorkspace(defaultSlug);
 
     const savedTheme = localStorage.getItem('selectedTheme');
     if (savedTheme) {
@@ -1089,15 +1163,14 @@ window.onload = async function () {
     }
 
     await loadConfig();
+    updateModelSelectForWorkspace(getActiveWorkspaceSlug());
 
     await loadMusicList();
     initMusicBindings();
+    initAudioVolumeBindings();
 
     initResultFolderBindings();
     initSettingsAccountBindings();
-
-    // Initialize Grok duration visibility based on current model selection
-    toggleGrokDurationVisibility();
 
     initWorkspaceBindings(defaultSlug);
 

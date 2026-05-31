@@ -1,6 +1,7 @@
 
 import base64
 import os
+import shutil
 import subprocess
 import tempfile
 import uuid
@@ -74,73 +75,123 @@ def _ffprobe_has_audio(path: str) -> bool:
         return False
 
 
+def _normalize_volume(value, default: float = 1.0) -> float:
+    """Nhận 0–100 (%) hoặc 0.0–1.0, trả về hệ số volume cho ffmpeg."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    if v > 1.0:
+        v = v / 100.0
+    return max(0.0, min(1.0, v))
+
+
 def apply_background_music(
     video_path: str,
     music_path: str,
     out_path: str,
-    music_volume: float = 0.6,
+    music_volume: float = 60,
+    video_audio_volume: float = 100,
 ) -> str:
     """
-    Thêm nhạc nền vào video và TẮT HẾT âm thanh gốc của video.
-    
-    ⚠️ QUAN TRỌNG: Hàm này sẽ LOẠI BỎ HOÀN TOÀN âm thanh gốc của video,
-    chỉ giữ lại nhạc nền để tránh bị loạn âm thanh.
-    
+    Trộn âm thanh video gốc và/hoặc nhạc nền với volume tùy chỉnh (0–100%).
+
     Args:
-        video_path: Đường dẫn video đầu vào
-        music_path: Đường dẫn file nhạc nền
-        out_path: Đường dẫn video đầu ra
-        music_volume: Volume nhạc nền (0.0-1.0), mặc định 0.6 = 60%
-    
-    Returns:
-        Đường dẫn video đầu ra đã có nhạc nền (không có âm gốc)
+        video_path: Video đầu vào
+        music_path: Nhạc nền (có thể rỗng nếu chỉ chỉnh âm video gốc)
+        music_volume: Âm lượng nhạc nền 0–100 (hoặc 0.0–1.0)
+        video_audio_volume: Âm lượng âm thanh gốc của video 0–100 (hoặc 0.0–1.0)
     """
     if not video_path or not os.path.exists(video_path):
         raise ValueError("video_path not found")
-    if not music_path or not os.path.exists(music_path):
-        raise ValueError("music_path not found")
 
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    mv = _normalize_volume(music_volume, 0.6)
+    vv = _normalize_volume(video_audio_volume, 1.0)
+    music_file = str(music_path or "").strip()
+    has_music = bool(music_file and os.path.exists(music_file))
+    has_vid_audio = _ffprobe_has_audio(video_path)
 
-    # 🔇 TẮT ÂM THANH GỐC - CHỈ GIỮ NHẠC NỀN
-    # Logic: Chỉ map audio từ input[1] (nhạc nền), KHÔNG map audio từ input[0] (video gốc)
-    filter_complex = f"[1:a]volume={music_volume}[aout]"
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
+
+    def _copy_passthrough() -> str:
+        if os.path.abspath(video_path) == os.path.abspath(out_path):
+            return video_path
+        shutil.copy2(video_path, out_path)
+        return out_path
+
+    # Không nhạc + giữ nguyên âm video gốc
+    if not has_music and vv >= 0.999:
+        if has_vid_audio:
+            return _copy_passthrough()
+        return _copy_passthrough()
+
+    # Không nhạc + tắt âm video
+    if not has_music and vv <= 0.001:
+        cmd = [
+            get_ffmpeg_exe(),
+            "-hide_banner", "-loglevel", "error", "-y",
+            "-i", video_path,
+            "-map", "0:v", "-c:v", "copy", "-an",
+            out_path,
+        ]
+        _run_ffmpeg(cmd)
+        return out_path
+
+    # Chỉ chỉnh âm video gốc (không nhạc)
+    if not has_music and has_vid_audio:
+        filter_complex = f"[0:a]volume={vv}[aout]"
+        cmd = [
+            get_ffmpeg_exe(),
+            "-hide_banner", "-loglevel", "error", "-y",
+            "-i", video_path,
+            "-filter_complex", filter_complex,
+            "-map", "0:v", "-map", "[aout]",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+            "-shortest", out_path,
+        ]
+        _run_ffmpeg(cmd)
+        return out_path
+
+    # Có nhạc nền
+    if has_music and not has_vid_audio:
+        filter_complex = f"[1:a]volume={mv}[aout]"
+    elif has_music and vv <= 0.001:
+        filter_complex = f"[1:a]volume={mv}[aout]"
+    elif has_music and mv <= 0.001:
+        filter_complex = f"[0:a]volume={vv}[aout]"
+    else:
+        filter_complex = (
+            f"[0:a]volume={vv}[voa];[1:a]volume={mv}[moa];"
+            f"[voa][moa]amix=inputs=2:duration=first:dropout_transition=0[aout]"
+        )
+
     cmd = [
         get_ffmpeg_exe(),
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-y",
-        "-i",
-        video_path,
-        "-stream_loop",
-        "-1",
-        "-i",
-        music_path,
-        "-filter_complex",
-        filter_complex,
-        "-map",
-        "0:v",
-        "-map",
-        "[aout]",
-        "-c:v",
-        "copy",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-shortest",
-        out_path,
+        "-hide_banner", "-loglevel", "error", "-y",
+        "-i", video_path,
+        "-stream_loop", "-1",
+        "-i", music_file,
+        "-filter_complex", filter_complex,
+        "-map", "0:v", "-map", "[aout]",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest", out_path,
     ]
-
-    result = subprocess.run(cmd, cwd=TRANSCODE_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **_win_subprocess_kwargs())
-    
-    # Kiểm tra file output thay vì dựa vào exit code (FFmpeg đôi khi trả về exit code sai)
-    if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
-        stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ''
-        raise RuntimeError(f"FFmpeg merge failed: {stderr}")
-    
+    _run_ffmpeg(cmd)
     return out_path
+
+
+def _run_ffmpeg(cmd: List[str]) -> None:
+    result = subprocess.run(
+        cmd,
+        cwd=TRANSCODE_DIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **_win_subprocess_kwargs(),
+    )
+    out_path = cmd[-1]
+    if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+        stderr = result.stderr.decode("utf-8", errors="ignore") if result.stderr else ""
+        raise RuntimeError(f"FFmpeg audio mix failed: {stderr}")
 
 
 def _effect_to_xfade_transition(effect_key: str) -> str:

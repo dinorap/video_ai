@@ -38,7 +38,7 @@ def open_profile(provider: str):
 
     p = provider.strip().lower()
 
-    if p in ["grok", "grok (x-ai)", "x-ai", "xai"]:
+    if p in ["grok", "grok (x-ai)", "x-ai", "xai"] or "grok chain" in p:
         # Only open profile + navigate to Grok (no CDP). CDP is managed by _GlobalBrowser.
         setting_grok_profile()
         return

@@ -17,6 +17,120 @@ function _isVeo3Provider(provider) {
     return p.includes('Veo3') || p.toLowerCase().includes('veo3');
 }
 
+function _isGrokChainProvider(provider) {
+    return String(provider || '').toLowerCase().includes('grok chain');
+}
+
+function _isGrokProvider(provider) {
+    const p = String(provider || '').toLowerCase();
+    return p.includes('grok') && !p.includes('veo3');
+}
+
+function _getSelectedProvider() {
+    const modelSelect = document.getElementById('model-select');
+    return modelSelect
+        ? String(modelSelect.options[modelSelect.selectedIndex].textContent || '').trim()
+        : '';
+}
+
+function _sceneHasAnyRef(refs) {
+    const r = refs || {};
+    return (
+        _isDataImageUrl(r.ref_product) ||
+        _isDataImageUrl(r.ref_character) ||
+        _isDataImageUrl(r.ref_combined)
+    );
+}
+
+function _validateVideoTask(task, provider, defaultImage) {
+    const scenes = task && task.scenes;
+    if (!Array.isArray(scenes) || scenes.length === 0) {
+        return 'Chưa có cảnh nào — bấm Thiết lập để thêm prompt';
+    }
+    const isGrokChain = _isGrokChainProvider(provider);
+    const isGrok = _isGrokProvider(provider);
+    const defImg = String(defaultImage || task.default_image || '');
+
+    for (let i = 0; i < scenes.length; i++) {
+        const s = scenes[i] || {};
+        if (!String(s.prompt || '').trim()) {
+            return `Thiếu prompt ở cảnh ${i + 1}`;
+        }
+        if (isGrokChain && i > 0) {
+            continue;
+        }
+        if (isGrok || isGrokChain) {
+            const refs = _normalizeSceneRefData(s);
+            const hasRef = _sceneHasAnyRef(refs) || (i === 0 && _isDataImageUrl(defImg));
+            if (!hasRef) {
+                return `Thiếu ảnh tham chiếu ở cảnh ${i + 1} (sản phẩm / nhân vật / kết hợp)`;
+            }
+        }
+    }
+    return null;
+}
+
+function _readGrokDuration(provider) {
+    if (!provider || !provider.toLowerCase().includes('grok')) return '6s';
+    const durationSelect = document.getElementById('grok-video-duration');
+    return durationSelect
+        ? String(durationSelect.value || '6s').trim()
+        : '6s';
+}
+
+function _readAudioVolumeSettings() {
+    const musicEl = document.getElementById('music-volume-input');
+    const videoEl = document.getElementById('video-audio-volume-input');
+    let music_volume = 60;
+    let video_audio_volume = 100;
+    if (musicEl) {
+        const n = parseInt(String(musicEl.value || ''), 10);
+        if (Number.isFinite(n)) music_volume = Math.max(0, Math.min(100, n));
+    }
+    if (videoEl) {
+        const n = parseInt(String(videoEl.value || ''), 10);
+        if (Number.isFinite(n)) video_audio_volume = Math.max(0, Math.min(100, n));
+    }
+    return { music_volume, video_audio_volume };
+}
+
+function _buildVideoBatchPayload(provider, out_dir_label, tasks, extra) {
+    const isGrokChain = _isGrokChainProvider(provider);
+    let max_tabs = 5;
+    const maxTabsInput = document.getElementById('max-tabs-input');
+    if (maxTabsInput) {
+        const n = parseInt(String(maxTabsInput.value || '').trim(), 10);
+        if (Number.isFinite(n) && n > 0) max_tabs = n;
+    }
+    if (isGrokChain) {
+        max_tabs = 1;
+    }
+
+    const aspectSelect = document.getElementById('aspect_ratio');
+    const ratio = aspectSelect ? String(aspectSelect.value || '9:16').trim() : '9:16';
+
+    const qualitySelect = document.getElementById('video-quality-select');
+    const quality = qualitySelect ? String(qualitySelect.value || '1080p').trim() : '1080p';
+
+    const payload = {
+        provider,
+        out_dir_label,
+        max_tabs,
+        ratio,
+        quality,
+        grok_duration: _readGrokDuration(provider),
+        ..._readAudioVolumeSettings(),
+        tasks,
+        ...(extra || {}),
+    };
+
+    const veo3_video_quality = _readVeo3VideoModelLabel(provider);
+    if (veo3_video_quality) {
+        payload.veo3_video_quality = veo3_video_quality;
+    }
+    return payload;
+}
+
 /** Nhãn dropdown #veo3-video-quality — khớp option value trong index.html */
 function _readVeo3VideoModelLabel(provider) {
     if (!_isVeo3Provider(provider)) return null;
@@ -609,7 +723,23 @@ function _createVideoSceneBlock(scene, idx, videoIndex, defaultImage) {
     block.appendChild(titleRow);
     block.appendChild(promptLabel);
     block.appendChild(prompt);
-    _appendSceneReferenceSlots(block, sceneRefs);
+
+    const provider = _getSelectedProvider();
+    const isGrokChain = _isGrokChainProvider(provider);
+    if (isGrokChain && sceneIndex > 1) {
+        const chainNote = document.createElement('div');
+        chainNote.className = 'grok-chain-scene-note';
+        chainNote.style.cssText =
+            'margin-top: 10px; padding: 10px 12px; border-radius: 8px; ' +
+            'background: color-mix(in srgb, #3b82f6 12%, transparent); ' +
+            'border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent); ' +
+            'color: #cbd5e1; font-size: 12px; line-height: 1.45;';
+        chainNote.innerHTML =
+            '<b>Grok Chain</b> — Cảnh này dùng <b>frame cuối cảnh trước</b> (tự động). Chỉ cần nhập prompt mô tả chuyển động/hành động tiếp theo.';
+        block.appendChild(chainNote);
+    } else {
+        _appendSceneReferenceSlots(block, sceneRefs);
+    }
     return block;
 }
 
@@ -780,8 +910,15 @@ async function _restoreVideoRowPrompts(videoIndex) {
 }
 
 function _setVideoProgress(videoIndex, percent, sceneIndex, totalScenes) {
-    // Progress bar removed — only show scene status
-    _setVideoSceneStatus(videoIndex, sceneIndex && totalScenes ? `Tạo cảnh ${sceneIndex}/${totalScenes}` : '');
+    const provider = _getSelectedProvider();
+    const isGrokChain = _isGrokChainProvider(provider);
+    let label = '';
+    if (sceneIndex && totalScenes) {
+        label = isGrokChain
+            ? `Grok Chain — cảnh ${sceneIndex}/${totalScenes}`
+            : `Tạo cảnh ${sceneIndex}/${totalScenes}`;
+    }
+    _setVideoSceneStatus(videoIndex, label);
 }
 
 function _setVideoResultLink(videoIndex, url) {
@@ -876,7 +1013,13 @@ function _setVideoResultLink(videoIndex, url) {
                 const res = await fetch('/remerge_video', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task_id: taskId, effect_key, music_url, music_name })
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        effect_key,
+                        music_url,
+                        music_name,
+                        ..._readAudioVolumeSettings(),
+                    })
                 });
                 const body = await res.json().catch(() => ({}));
                 if (!res.ok || !body.ok) {
@@ -1254,6 +1397,24 @@ function _createVideoRow(index, defaultImage, titleText) {
     return row;
 }
 
+function _refreshVideoSceneBlocksIfOpen() {
+    const modal = document.getElementById('videoSettingsModal');
+    if (!modal || modal.style.display === 'none') return;
+    const videoIndex = parseInt(String(modal.dataset.videoIndex || ''), 10) || 0;
+    if (videoIndex <= 0) return;
+    const rowEl = document.getElementById(`video-row-${videoIndex}`);
+    if (!rowEl) return;
+    let scenes = [];
+    try {
+        scenes = JSON.parse(String(rowEl.dataset.scenes || '') || '[]');
+    } catch (e) {
+        scenes = [];
+    }
+    if (Array.isArray(scenes) && scenes.length > 0) {
+        _renderVideoScenes(scenes, videoIndex);
+    }
+}
+
 function initTaoVideoPage() {
     const addBtn = document.getElementById('btn-add-video');
     const startBtn = document.getElementById('btn-start-video');
@@ -1448,7 +1609,11 @@ function initTaoVideoPage() {
                 try {
                     const st = String(row.dataset.status || '');
                     const ph = String(row.dataset.phase || '');
-                    if (st || ph) {
+                    if (ph === 'extracting_frame') {
+                        _setVideoSceneStatus(idx, 'Grok Chain — đang cắt frame cuối');
+                    } else if (ph === 'grok_chain') {
+                        _setVideoSceneStatus(idx, 'Grok Chain — đang tạo cảnh (frame trước)');
+                    } else if (st || ph) {
                         _setVideoSceneStatus(idx, ph || st);
                     }
                 } catch (e) { }
@@ -1504,12 +1669,6 @@ function initTaoVideoPage() {
         const modelSelect = document.getElementById('model-select');
         const provider = modelSelect ? String(modelSelect.options[modelSelect.selectedIndex].textContent || '') : '';
 
-        const aspectSelect = document.getElementById('aspect_ratio');
-        const ratio = aspectSelect ? String(aspectSelect.value || '9:16').trim() : '9:16';
-
-        const qualitySelect = document.getElementById('video-quality-select');
-        const quality = qualitySelect ? String(qualitySelect.value || '1080p').trim() : '1080p';
-
         const resultFolderLabel = document.getElementById('resultFolderLabel');
         const out_dir_label = resultFolderLabel ? String(resultFolderLabel.textContent || '').trim() : '';
         if (!out_dir_label || out_dir_label.toLowerCase().includes('thư mục')) {
@@ -1519,13 +1678,6 @@ function initTaoVideoPage() {
                 alert('Vui lòng chọn thư mục lưu kết quả');
             }
             return;
-        }
-
-        const maxTabsInput = document.getElementById('max-tabs-input');
-        let max_tabs = 5;
-        if (maxTabsInput) {
-            const n = parseInt(String(maxTabsInput.value || '').trim(), 10);
-            if (Number.isFinite(n) && n > 0) max_tabs = n;
         }
 
         const musicInput = document.getElementById('musicSelect');
@@ -1551,41 +1703,33 @@ function initTaoVideoPage() {
 
         const task = _collectOneVideoTaskFromRow(rowEl);
 
+        const validationErr = _validateVideoTask(task, provider, rowEl.dataset.defaultImage || '');
+        if (validationErr) {
+            if (typeof window.showSuccessOverlay === 'function') {
+                window.showSuccessOverlay(validationErr);
+            } else {
+                alert(validationErr);
+            }
+            return;
+        }
+
         // reset UI
         _setVideoProgress(idx, 0, null, null);
         _setVideoSceneStatus(idx, '');
         _setVideoResultLink(idx, '');
         _setRowCreateBtnState(idx, true);
-        _setVideoSceneStatus(idx, 'Đang tạo cảnh 1');
+        _setVideoSceneStatus(
+            idx,
+            _isGrokChainProvider(provider) ? 'Grok Chain — đang tạo cảnh 1' : 'Đang tạo cảnh 1'
+        );
 
         _persistTaoVideoStateNow();
 
-        // Get Grok duration if Grok is selected
-        let grok_duration = '6s';
-        if (provider && provider.toLowerCase().includes('grok')) {
-            const durationSelect = document.getElementById('grok-video-duration');
-            if (durationSelect) {
-                grok_duration = String(durationSelect.value || '6s').trim();
-            }
-        }
-
-        const veo3_video_quality = _readVeo3VideoModelLabel(provider);
-
         try {
-            const payload = {
-                provider,
-                out_dir_label,
-                max_tabs,
-                ratio,
-                quality,
+            const payload = _buildVideoBatchPayload(provider, out_dir_label, [task], {
                 music_url,
                 music_name,
-                grok_duration,
-                tasks: [task],
-            };
-            if (veo3_video_quality) {
-                payload.veo3_video_quality = veo3_video_quality;
-            }
+            });
             const res = await fetch('/create_videos_batch_start', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1683,6 +1827,17 @@ function initTaoVideoPage() {
 
                 if (phase === 'downloading') {
                     _setVideoSceneStatus(videoIndex, 'Đang tải video');
+                } else if (phase === 'extracting_frame') {
+                    _setVideoSceneStatus(videoIndex, 'Grok Chain — đang cắt frame cuối');
+                    return;
+                } else if (phase === 'grok_chain') {
+                    _setVideoSceneStatus(
+                        videoIndex,
+                        sceneIndex && totalScenes
+                            ? `Grok Chain — cảnh ${sceneIndex}/${totalScenes} (frame trước)`
+                            : 'Grok Chain — đang tạo cảnh'
+                    );
+                    return;
                 }
 
                 if (status === 'completed') {
@@ -1758,7 +1913,13 @@ function initTaoVideoPage() {
                 }
 
                 if (sceneIndex && totalScenes) {
-                    _setVideoSceneStatus(videoIndex, `Đang tạo cảnh ${sceneIndex}/${totalScenes}`);
+                    const isGrokChain = _isGrokChainProvider(_getSelectedProvider());
+                    _setVideoSceneStatus(
+                        videoIndex,
+                        isGrokChain
+                            ? `Grok Chain — cảnh ${sceneIndex}/${totalScenes}`
+                            : `Đang tạo cảnh ${sceneIndex}/${totalScenes}`
+                    );
                 } else if (sceneIndex) {
                     _setVideoSceneStatus(videoIndex, `Đang tạo cảnh ${sceneIndex}`);
                 }
@@ -1795,12 +1956,6 @@ function initTaoVideoPage() {
             const modelSelect = document.getElementById('model-select');
             const provider = modelSelect ? String(modelSelect.options[modelSelect.selectedIndex].textContent || '') : '';
 
-            const aspectSelect = document.getElementById('aspect_ratio');
-            const ratio = aspectSelect ? String(aspectSelect.value || '9:16').trim() : '9:16';
-
-            const qualitySelect = document.getElementById('video-quality-select');
-            const quality = qualitySelect ? String(qualitySelect.value || '1080p').trim() : '1080p';
-
             const resultFolderLabel = document.getElementById('resultFolderLabel');
             const out_dir_label = resultFolderLabel ? String(resultFolderLabel.textContent || '').trim() : '';
             if (!out_dir_label || out_dir_label.toLowerCase().includes('thư mục')) {
@@ -1813,10 +1968,8 @@ function initTaoVideoPage() {
             }
 
             const maxTabsInput = document.getElementById('max-tabs-input');
-            let max_tabs = 5;
-            if (maxTabsInput) {
-                const n = parseInt(String(maxTabsInput.value || '').trim(), 10);
-                if (Number.isFinite(n) && n > 0) max_tabs = n;
+            if (maxTabsInput && _isGrokChainProvider(provider)) {
+                maxTabsInput.value = '1';
             }
 
             const musicInput = document.getElementById('musicSelect');
@@ -1843,6 +1996,20 @@ function initTaoVideoPage() {
             const tasks = rows.map((rowEl) => _collectOneVideoTaskFromRow(rowEl))
                 .filter((t) => t && t.form_id);
 
+            for (let i = 0; i < tasks.length; i++) {
+                const rowEl = rows[i];
+                const defImg = rowEl ? String(rowEl.dataset.defaultImage || '') : '';
+                const err = _validateVideoTask(tasks[i], provider, defImg);
+                if (err) {
+                    if (typeof window.showSuccessOverlay === 'function') {
+                        window.showSuccessOverlay(err);
+                    } else {
+                        alert(err);
+                    }
+                    return;
+                }
+            }
+
             // reset UI
             rows.forEach((rowEl) => {
                 const idx = parseInt(String(rowEl.dataset.videoIndex || ''), 10) || 0;
@@ -1856,22 +2023,11 @@ function initTaoVideoPage() {
             startBtn.textContent = 'Dừng';
             _createVideosRunning = true;
 
-            const veo3_video_quality = _readVeo3VideoModelLabel(provider);
-
             try {
-                const batchPayload = {
-                    provider,
-                    out_dir_label,
-                    max_tabs,
-                    ratio,
-                    quality,
+                const batchPayload = _buildVideoBatchPayload(provider, out_dir_label, tasks, {
                     music_url,
                     music_name,
-                    tasks,
-                };
-                if (veo3_video_quality) {
-                    batchPayload.veo3_video_quality = veo3_video_quality;
-                }
+                });
                 const res = await fetch('/create_videos_batch_start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1923,4 +2079,5 @@ function initTaoVideoPage() {
 
 window.PageInits = window.PageInits || {};
 window.PageInits['tao-video'] = initTaoVideoPage;
+window._refreshVideoSceneBlocksIfOpen = _refreshVideoSceneBlocksIfOpen;
 

@@ -301,19 +301,30 @@ async def _run_one_video_task_veo3(
         merged_path = merge_video_clips(out_clips, merged_out, effect_key=effect_key)
         print(f"[Veo3 Batch] ✅ Đã ghép video: {merged_path}")
 
-        # Apply background music (GIỐNG 100% BÊN GROK)
-        if music_path and os.path.exists(music_path):
-            try:
-                print(f"[Veo3 Batch] 🎵 Thêm nhạc nền: {music_path}")
-                tmp_music_out = os.path.join(TRANSCODE_DIR, f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}")
-                applied = apply_background_music(merged_path, music_path, tmp_music_out)
-                shutil.copy2(applied, merged_out)
-                merged_path = merged_out
-                if os.path.exists(tmp_music_out):
-                    os.remove(tmp_music_out)
-                print(f"[Veo3 Batch] ✅ Đã thêm nhạc nền")
-            except Exception as e:
-                print(f"[Veo3 Batch] ⚠️ Lỗi thêm nhạc nền: {e}")
+        # Trộn âm thanh (nhạc nền + âm video gốc)
+        try:
+            music_vol = task.get("music_volume", 60)
+            video_vol = task.get("video_audio_volume", 100)
+            tmp_audio_out = os.path.join(
+                TRANSCODE_DIR,
+                f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}",
+            )
+            if music_path and os.path.exists(music_path):
+                print(f"[Veo3 Batch] 🎵 Trộn nhạc nền: {music_path}")
+            applied = apply_background_music(
+                merged_path,
+                music_path if music_path and os.path.exists(music_path) else "",
+                tmp_audio_out,
+                music_volume=music_vol,
+                video_audio_volume=video_vol,
+            )
+            shutil.copy2(applied, merged_out)
+            merged_path = merged_out
+            if os.path.exists(tmp_audio_out) and os.path.abspath(tmp_audio_out) != os.path.abspath(merged_out):
+                os.remove(tmp_audio_out)
+            print(f"[Veo3 Batch] ✅ Đã trộn âm thanh (nhạc + video gốc)")
+        except Exception as e:
+            print(f"[Veo3 Batch] ⚠️ Lỗi trộn âm thanh: {e}")
 
         # Prepare for playback (GIỐNG 100% BÊN GROK)
         out_name = os.path.basename(merged_path)

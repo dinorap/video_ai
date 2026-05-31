@@ -12,6 +12,7 @@ import json
 import uuid
 
 from utils.grok.creat_video import VideoJob, create_video_grok, _ACTIVE_VIDEO_PAGES
+from utils.grok.grok_frame import extract_last_frame_to
 from utils.video_reference_prompts import prepare_scene_references
 from utils.control_script import update_task_status
 from utils.control_ffmpeg import merge_video_clips, TRANSCODE_DIR, apply_background_music
@@ -95,12 +96,26 @@ def _decode_data_url_to_temp_file(data_url: str, suffix: str = ".png") -> str:
 from utils.path_helper import CONFIG_FILE, get_base_path, pstr
 
 
+def is_grok_chain_provider(provider: str) -> bool:
+    p = str(provider or "").strip().lower()
+    return "grok chain" in p or "grok nối" in p or "grok noi" in p
+
+
+def is_grok_provider(provider: str) -> bool:
+    """Grok thường hoặc Grok Chain — không bao gồm Veo3."""
+    p = str(provider or "").strip().lower()
+    if "veo3" in p:
+        return False
+    return "grok" in p
+
+
 async def _run_one_video_task(
     context,
     task: Dict[str, Any],
     sem: asyncio.Semaphore,
     cancel_event: Optional[asyncio.Event] = None,
-    grok_duration: str = '6s'
+    grok_duration: str = '6s',
+    grok_chain: bool = False,
 ):
     task_id = str(task.get("task_id") or "").strip()
     scenes = task.get("scenes")
@@ -133,6 +148,14 @@ async def _run_one_video_task(
     update_task_status(task_id, "processing", phase="processing")
 
     tmp_files: List[str] = []
+    last_frame_path: Optional[str] = None
+    clips_dir_root = ""
+    try:
+        if out_clips:
+            clips_dir_root = os.path.dirname(str(out_clips[0]))
+    except Exception:
+        pass
+
     try:
         for idx, scene in enumerate(scenes):
             # Check cancellation
@@ -155,32 +178,57 @@ async def _run_one_video_task(
                 update_task_status(task_id, "failed", error=f"Thiếu prompt ở cảnh {idx+1}")
                 return None
 
-            ref_urls, ref_types, final_prompt = prepare_scene_references(
-                scene_prompt=prompt,
-                ref_product=str(scene.get("ref_product") or task.get("ref_product") or ""),
-                ref_character=str(scene.get("ref_character") or task.get("ref_character") or ""),
-                ref_combined=str(
-                    scene.get("ref_combined") or scene.get("image") or task.get("ref_combined") or ""
-                ),
-                default_image=str(task.get("default_image") or ""),
-            )
-            print(
-                f"[Grok Video Batch] Cảnh {idx + 1}: "
-                f"upload {len(ref_urls)} ảnh, ref_types={ref_types}"
-            )
-            if not ref_urls:
-                update_task_status(
-                    task_id,
-                    "failed",
-                    error=f"Thiếu ảnh tham chiếu ở cảnh {idx+1} (sản phẩm / nhân vật / kết hợp)",
-                )
-                return None
-
             ref_paths: List[str] = []
-            for u in ref_urls:
-                p = _decode_data_url_to_temp_file(u, suffix=".png")
-                tmp_files.append(p)
-                ref_paths.append(p)
+            final_prompt = prompt
+
+            if grok_chain and idx > 0:
+                frame_by_scene = os.path.join(clips_dir_root, f"frame_{idx + 1}.jpg")
+                frame_input = (
+                    last_frame_path
+                    if last_frame_path and os.path.exists(last_frame_path)
+                    else frame_by_scene
+                )
+                if not frame_input or not os.path.exists(frame_input):
+                    update_task_status(
+                        task_id,
+                        "failed",
+                        error=(
+                            f"Thiếu frame tham chiếu cho cảnh {idx + 1}. "
+                            f"Cần hoàn thành cảnh {idx} trước."
+                        ),
+                    )
+                    return None
+                ref_paths = [frame_input]
+                print(
+                    f"[Grok Chain] Cảnh {idx + 1}: upload frame cuối cảnh trước "
+                    f"({os.path.basename(frame_input)})"
+                )
+            else:
+                ref_urls, ref_types, final_prompt = prepare_scene_references(
+                    scene_prompt=prompt,
+                    ref_product=str(scene.get("ref_product") or task.get("ref_product") or ""),
+                    ref_character=str(scene.get("ref_character") or task.get("ref_character") or ""),
+                    ref_combined=str(
+                        scene.get("ref_combined") or scene.get("image") or task.get("ref_combined") or ""
+                    ),
+                    default_image=str(task.get("default_image") or ""),
+                )
+                print(
+                    f"[Grok Video Batch] Cảnh {idx + 1}: "
+                    f"upload {len(ref_urls)} ảnh, ref_types={ref_types}"
+                )
+                if not ref_urls:
+                    update_task_status(
+                        task_id,
+                        "failed",
+                        error=f"Thiếu ảnh tham chiếu ở cảnh {idx+1} (sản phẩm / nhân vật / kết hợp)",
+                    )
+                    return None
+
+                for u in ref_urls:
+                    p = _decode_data_url_to_temp_file(u, suffix=".png")
+                    tmp_files.append(p)
+                    ref_paths.append(p)
 
             update_task_status(
                 task_id,
@@ -188,7 +236,7 @@ async def _run_one_video_task(
                 scene_index=idx + 1,
                 total_scenes=len(scenes),
                 progress_percent=int((idx / max(1, len(scenes))) * 100),
-                phase="downloading",
+                phase="grok_chain" if grok_chain and idx > 0 else "downloading",
             )
 
             # Fix 4: Use Semaphore per scene for better tab utilization
@@ -235,6 +283,29 @@ async def _run_one_video_task(
                     pass
 
                 out_clips[idx] = str(real_clip_path)
+
+                if grok_chain and idx < len(scenes) - 1:
+                    update_task_status(
+                        task_id,
+                        "processing",
+                        scene_index=idx + 1,
+                        total_scenes=len(scenes),
+                        phase="extracting_frame",
+                    )
+                    try:
+                        next_frame = os.path.join(clips_dir_root, f"frame_{idx + 2}.jpg")
+                        last_frame_path = extract_last_frame_to(real_clip_path, next_frame)
+                        print(
+                            f"[Grok Chain] Đã cắt frame cuối cảnh {idx + 1} → "
+                            f"{os.path.basename(last_frame_path)}"
+                        )
+                    except Exception as exc:
+                        update_task_status(
+                            task_id,
+                            "failed",
+                            error=f"Không cắt được frame cuối cảnh {idx + 1}: {exc}",
+                        )
+                        return None
 
             update_task_status(
                 task_id,
@@ -287,17 +358,27 @@ async def _run_one_video_task(
 
         merged_path = merge_video_clips(out_clips, merged_out, effect_key=effect_key)
 
-        # Apply background music
-        if music_path and os.path.exists(music_path):
-            try:
-                tmp_music_out = os.path.join(TRANSCODE_DIR, f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}")
-                applied = apply_background_music(merged_path, music_path, tmp_music_out)
-                shutil.copy2(applied, merged_out)
-                merged_path = merged_out
-                if os.path.exists(tmp_music_out):
-                    os.remove(tmp_music_out)
-            except Exception:
-                pass
+        # Trộn âm thanh (nhạc nền + âm video gốc)
+        try:
+            music_vol = task.get("music_volume", 60)
+            video_vol = task.get("video_audio_volume", 100)
+            tmp_audio_out = os.path.join(
+                TRANSCODE_DIR,
+                f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}",
+            )
+            applied = apply_background_music(
+                merged_path,
+                music_path if music_path and os.path.exists(music_path) else "",
+                tmp_audio_out,
+                music_volume=music_vol,
+                video_audio_volume=video_vol,
+            )
+            shutil.copy2(applied, merged_out)
+            merged_path = merged_out
+            if os.path.exists(tmp_audio_out) and os.path.abspath(tmp_audio_out) != os.path.abspath(merged_out):
+                os.remove(tmp_audio_out)
+        except Exception:
+            pass
 
         # Prepare for playback
         out_name = os.path.basename(merged_path)
@@ -349,8 +430,11 @@ async def run_video_tasks(
     tasks: List[dict],
     max_tabs: int = 3,
     cancel_event: Optional[asyncio.Event] = None,
-    grok_duration: str = '6s'
+    grok_duration: str = '6s',
+    grok_chain: bool = False,
 ):
+    grok_chain = bool(grok_chain and is_grok_chain_provider(provider))
+
     try:
         max_tabs = int(max_tabs)
     except Exception:
@@ -358,9 +442,24 @@ async def run_video_tasks(
     if max_tabs < 1:
         max_tabs = 1
 
+    if grok_chain:
+        max_tabs = 1
+
     sem = asyncio.Semaphore(max_tabs)
+
+    if grok_chain:
+        results = []
+        for task in tasks:
+            if cancel_event is not None and getattr(cancel_event, "is_set", None) and cancel_event.is_set():
+                raise asyncio.CancelledError()
+            result = await _run_one_video_task(
+                context, task, sem, cancel_event, grok_duration, grok_chain=True
+            )
+            results.append(result)
+        return results
+
     jobs = [
-        _run_one_video_task(context, task, sem, cancel_event, grok_duration)
+        _run_one_video_task(context, task, sem, cancel_event, grok_duration, False)
         for task in tasks
     ]
 

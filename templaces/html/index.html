@@ -162,6 +162,12 @@
                     </select>
                 </div>
 
+                <div id="grok-chain-hint-container" style="display: none;">
+                    <div style="padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: #cbd5e1; background: color-mix(in srgb, #3b82f6 10%, transparent); border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);">
+                        <b>Grok Chain</b> — Cảnh 1 upload ảnh như Grok thường. Từ cảnh 2 trở đi: tự động lấy <b>frame cuối</b> cảnh trước làm ảnh tham chiếu. Chạy <b>tuần tự 1 tab</b>, không song song.
+                    </div>
+                </div>
+
                 <div id="veo3-image-model-container" style="display: none;">
                     <span class="label">Model tạo ảnh (Veo3)</span>
                     <select class="input-control" id="veo3-image-model">
@@ -209,6 +215,20 @@
                     <input id="random-music-checkbox" type="checkbox" checked>
                     <span>Chế độ Random nhạc</span>
                 </label>
+                <div style="margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span class="label" style="margin: 0;">Âm lượng nhạc nền</span>
+                        <span id="music-volume-label" style="font-size: 12px; color: #aaa;">60%</span>
+                    </div>
+                    <input class="input-control" id="music-volume-input" type="range" min="0" max="100" value="60" step="1" style="width: 100%; padding: 0;" />
+                </div>
+                <div style="margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span class="label" style="margin: 0;">Âm lượng video gốc</span>
+                        <span id="video-audio-volume-label" style="font-size: 12px; color: #aaa;">100%</span>
+                    </div>
+                    <input class="input-control" id="video-audio-volume-input" type="range" min="0" max="100" value="100" step="1" style="width: 100%; padding: 0;" />
+                </div>
             </div>
             <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
             <button type="button" class="btn btn-settings" id="btn-log-settings"

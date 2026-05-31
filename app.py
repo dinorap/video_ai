@@ -448,6 +448,14 @@ def _music_url_to_abs_path(music_url: str) -> str:
     return ''
 
 
+def _parse_volume_percent(value, default: int = 60) -> int:
+    try:
+        v = int(float(value))
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(100, v))
+
+
 def _write_data_url_to_file(data_url: str, out_path: str) -> None:
     if not data_url or not data_url.startswith('data:image'):
         raise ValueError('Only data:image/* base64 is supported')
@@ -770,6 +778,8 @@ def remerge_video():
         music_url = str(payload.get('music_url') or '').strip()
         music_name = str(payload.get('music_name') or '').strip()
         music_path = _music_url_to_abs_path(music_url)
+        music_volume = _parse_volume_percent(payload.get('music_volume'), 60)
+        video_audio_volume = _parse_volume_percent(payload.get('video_audio_volume'), 100)
 
         if not task_id:
             return jsonify({'ok': False, 'error': 'Missing task_id'}), 400
@@ -861,20 +871,25 @@ def remerge_video():
 
         merged_path = merge_video_clips(resolved, merged_out, effect_key=effect_key)
 
-        if music_path and os.path.exists(music_path):
+        try:
+            tmp_audio_out = os.path.join(TRANSCODE_DIR, f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}")
+            applied = apply_background_music(
+                merged_path,
+                music_path if music_path and os.path.exists(music_path) else "",
+                tmp_audio_out,
+                music_volume=music_volume,
+                video_audio_volume=video_audio_volume,
+            )
+            import shutil
+            shutil.copy2(applied, merged_out)
+            merged_path = merged_out
             try:
-                tmp_music_out = os.path.join(TRANSCODE_DIR, f"music_{task_id.replace('-', '')[:12]}_{os.path.basename(merged_out)}")
-                applied = apply_background_music(merged_path, music_path, tmp_music_out)
-                import shutil
-                shutil.copy2(applied, merged_out)
-                merged_path = merged_out
-                try:
-                    if os.path.exists(tmp_music_out):
-                        os.remove(tmp_music_out)
-                except Exception:
-                    pass
+                if os.path.exists(tmp_audio_out) and os.path.abspath(tmp_audio_out) != os.path.abspath(merged_out):
+                    os.remove(tmp_audio_out)
             except Exception:
                 pass
+        except Exception:
+            pass
 
         out_name = os.path.basename(merged_path)
         trans_name = f"{task_id.replace('-', '')[:12]}__{out_name}"
@@ -1412,6 +1427,14 @@ def create_images_batch_start():
         provider = str(payload.get('provider') or '').strip()
         if 'Veo3' in provider or 'veo3' in provider.lower():
             return create_images_veo3_handler()
+
+        from utils.control_creat_video import is_grok_chain_provider
+        if is_grok_chain_provider(provider):
+            return jsonify({
+                'ok': False,
+                'error': 'Grok Chain chỉ dùng cho Tạo video. Chọn Grok (X-AI) hoặc Veo3 (Google).',
+            }), 400
+
         return create_images_batch()
     except Exception as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 500
@@ -1430,6 +1453,15 @@ def create_videos_batch_start():
         if 'Veo3' in provider or 'veo3' in provider.lower():
             print(f"[create_videos_batch_start] ✅ Routing to Veo3 handler (provider: '{provider}')...")
             return create_videos_veo3_handler()
+
+        from utils.control_creat_video import is_grok_chain_provider, is_grok_provider
+        if not is_grok_provider(provider):
+            return jsonify({
+                'ok': False,
+                'error': 'Model không hỗ trợ tạo video qua Grok. Chọn Grok (X-AI) hoặc Grok Chain (X-AI).',
+            }), 400
+
+        grok_chain = is_grok_chain_provider(provider)
         out_dir_label = str(payload.get('out_dir_label') or '')
         # Normalize common issues from UI labels (quotes/hidden chars/newlines)
         out_dir_label = out_dir_label.replace('\u200e', '').replace('\u200f', '').replace('\ufeff', '')
@@ -1444,13 +1476,15 @@ def create_videos_batch_start():
         music_url = str(payload.get('music_url') or '').strip()
         music_name = str(payload.get('music_name') or '').strip()
         music_path = _music_url_to_abs_path(music_url)
+        music_volume = _parse_volume_percent(payload.get('music_volume'), 60)
+        video_audio_volume = _parse_volume_percent(payload.get('video_audio_volume'), 100)
         grok_duration = str(payload.get('grok_duration') or '6s').strip()
         tasks = payload.get('tasks')
 
         if not isinstance(tasks, list) or len(tasks) == 0:
             return jsonify({'ok': False, 'error': 'No tasks provided'}), 400
 
-        # Validate scenes: prompt + ít nhất một ảnh tham chiếu (ô kịch bản hoặc ảnh riêng cảnh)
+        # Validate scenes: prompt + ảnh tham chiếu (cảnh 1 bắt buộc; cảnh 2+ chỉ khi không phải Grok Chain)
         try:
             from utils.video_reference_prompts import prepare_scene_references
             for t in tasks:
@@ -1461,6 +1495,8 @@ def create_videos_batch_start():
                     prompt = str((scene or {}).get('prompt') or '').strip()
                     if not prompt:
                         return jsonify({'ok': False, 'error': f'Thiếu prompt ở cảnh {idx + 1}'}), 400
+                    if grok_chain and idx > 0:
+                        continue
                     ref_urls, _, _ = prepare_scene_references(
                         scene_prompt=prompt,
                         ref_product=str((scene or {}).get('ref_product') or (t or {}).get('ref_product') or ''),
@@ -1480,6 +1516,9 @@ def create_videos_batch_start():
                         }), 400
         except Exception:
             pass
+
+        if grok_chain:
+            max_tabs = 1
 
         if os.path.isabs(out_dir_label):
             try:
@@ -1531,6 +1570,8 @@ def create_videos_batch_start():
                 'music_url': music_url,
                 'music_name': music_name,
                 'music_path': music_path,
+                'music_volume': music_volume,
+                'video_audio_volume': video_audio_volume,
                 'ref_product': str((t or {}).get('ref_product') or ''),
                 'ref_character': str((t or {}).get('ref_character') or ''),
                 'ref_combined': str((t or {}).get('ref_combined') or ''),
@@ -1554,6 +1595,7 @@ def create_videos_batch_start():
                 max_tabs=max_tabs,
                 cancel_event=_CREATE_VIDEOS_CANCEL,
                 grok_duration=grok_duration,
+                grok_chain=grok_chain,
             )
 
         future = asyncio.run_coroutine_threadsafe(_run_on_global_ctx_async(), gb._loop)
@@ -1976,6 +2018,7 @@ def setup_profile():
 
         supported = {
             'Grok (X-AI)': 'Grok (X-AI)',
+            'Grok Chain (X-AI)': 'Grok Chain (X-AI)',
             'Veo3 (Google)': 'Veo3 (Google)',
         }
         if model in supported:
@@ -2525,6 +2568,8 @@ def create_videos_veo3_handler():
         music_url = str(payload.get('music_url') or '').strip()
         music_name = str(payload.get('music_name') or '').strip()
         music_path = _music_url_to_abs_path(music_url)
+        music_volume = _parse_volume_percent(payload.get('music_volume'), 60)
+        video_audio_volume = _parse_volume_percent(payload.get('video_audio_volume'), 100)
 
         from utils.veo3.veo_reference_video_api import (
             normalize_frontend_veo_video_model_label,
@@ -2643,6 +2688,8 @@ def create_videos_veo3_handler():
                 'music_url': music_url,
                 'music_name': music_name,
                 'music_path': music_path,
+                'music_volume': music_volume,
+                'video_audio_volume': video_audio_volume,
                 'profile_name': profile_name or (t or {}).get('profile_name'),
                 'account_type': account_type,
                 'ref_product': str((t or {}).get('ref_product') or ''),
