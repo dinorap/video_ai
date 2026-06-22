@@ -9,10 +9,27 @@
         <button id="btn-input-prompt-image-all" class="btn-header">Nhập Prompt cho tất cả</button>
         <button id="btn-generate-all-images" class="btn-header">Tạo Tất Cả</button>
     </div>
+    <div style="display: flex; flex-direction: row; gap: 8px; margin-top: 10px;">
+        <div style="flex: 1;">
+            <span class="label">Tỉ lệ</span>
+            <select id="aspect_ratio" class="input-control">
+                <option selected>9:16</option>
+                <option>16:9</option>
+                <option>1:1</option>
+                <option>3:2</option>
+                <option>2:3</option>
+            </select>
+        </div>
+    </div>
 </div>
 
 <div class="image-gen-wrapper">
     <div id="image-display-area" class="display-workspace">
         <!-- Image forms will be rendered here -->
     </div>
+</div>
+
+<div id="imageLightbox" class="img-lightbox">
+  <img id="imageLightboxImg">
+  <button type="button" class="img-lightbox-close" onclick="closeImageLightbox()">×</button>
 </div>

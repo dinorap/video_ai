@@ -66,14 +66,11 @@ div:has-text("Đang tạo ảnh")
 """
 
 SELECTOR_THUMBNAILS = """
-img[alt^="Thumbnail"]
+article img
 """
 
 SELECTOR_RESULT_IMAGE = """
-img[src*="imagine-public"],
-img[src*="generated"],
-img[src^="http"],
-img[src^="https"]
+.grid img
 """
 
 SELECTOR_ASPECT_BUTTON = """
@@ -259,13 +256,10 @@ async def create_image_grok(context, image1, image2, prompt, out_path, ratio="9:
         try:
             thumbs0 = page.locator(SELECTOR_THUMBNAILS)
             c0 = await thumbs0.count()
-            for i in range(min(int(c0), 12)):
-                try:
-                    s = await thumbs0.nth(i).get_attribute("src")
-                    if s:
-                        before_srcs.add(str(s))
-                except Exception:
-                    pass
+            if c0 > 0:
+                s = await thumbs0.first.get_attribute("src")
+                if s:
+                    before_srcs.add(str(s))
         except Exception:
             before_srcs = set()
 
@@ -317,56 +311,24 @@ async def create_image_grok(context, image1, image2, prompt, out_path, ratio="9:
             if cancel_event is not None and getattr(cancel_event, "is_set", None) and cancel_event.is_set():
                 raise asyncio.CancelledError()
 
-            # Try thumbnails first
-            thumbs = page.locator(SELECTOR_THUMBNAILS)
-            c = 0
             try:
-                c = await thumbs.count()
-            except Exception:
-                c = 0
-
-            if c > 0:
-                # Prefer a new generated thumb that wasn't present before submit
-                for i in range(min(int(c), 12)):
-                    try:
-                        src = await thumbs.nth(i).get_attribute("src")
-                        if not src:
-                            continue
-                        src = str(src)
-                        if "/generated/" in src and src not in before_srcs:
-                            thumb_url = src
-                            break
-                    except Exception:
-                        pass
-
-                if thumb_url:
+                img = page.locator("article img").first
+                src = await img.get_attribute("src")
+                if src and "/generated/" in str(src) and src not in before_srcs:
+                    thumb_url = src
                     break
+            except Exception:
+                pass
 
-                # Fallback: if everything is already in before_srcs (rare), accept first generated
-                try:
-                    src0 = await thumbs.first.get_attribute("src")
-                    if src0 and "/generated/" in str(src0):
-                        thumb_url = str(src0)
-                        break
-                except Exception:
-                    pass
-
-            # Fallback 2: Try to find any result image (not just thumbnails)
             if not thumb_url:
                 try:
-                    result_imgs = page.locator(SELECTOR_RESULT_IMAGE)
-                    rc = await result_imgs.count()
-                    if rc > 0:
-                        for i in range(min(int(rc), 12)):
-                            try:
-                                src = await result_imgs.nth(i).get_attribute("src")
-                                if src and ("/generated/" in str(src) or "/imagine-public" in str(src)):
-                                    src = str(src)
-                                    if src not in before_srcs:
-                                        thumb_url = src
-                                        break
-                            except Exception:
-                                pass
+                    thumbs = page.locator(SELECTOR_THUMBNAILS)
+                    c = await thumbs.count()
+                    if c > 0:
+                        src0 = await thumbs.first.get_attribute("src")
+                        if src0 and "/generated/" in str(src0) and src0 not in before_srcs:
+                            thumb_url = str(src0)
+                            break
                 except Exception:
                     pass
 

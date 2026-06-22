@@ -1,7 +1,7 @@
 """Single source of truth for app name, version, GitHub release, and license settings."""
 
 APP_NAME = "VideoCreator"
-CURRENT_VERSION = "v1.0.8"
+CURRENT_VERSION = "v1.1.0"
 UPDATE_ZIP_NAME = "VideoCreator.zip"
 GITHUB_USER = "dinorap"
 GITHUB_REPO = "video-release"

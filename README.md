@@ -3,7 +3,7 @@ B1. DI CHUYỂN VÀO THƯ MỤC DỰ ÁN
 
 B2. CHẠY LẦN LƯỢT CÁC LỆNH SAU
 python -m venv venv
-venv\Scripts\activate
+.venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 playwright install chromium

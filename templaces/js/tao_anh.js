@@ -122,6 +122,11 @@ function _createImageForm({ characterSrc, characterName }) {
         const img = document.createElement('img');
         img.src = characterSrc;
         img.alt = characterName || 'character';
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            openImageLightbox(String(img.src));
+        });
         charBox.appendChild(img);
     }
 
@@ -142,6 +147,11 @@ function _createImageForm({ characterSrc, characterName }) {
                     const img = document.createElement('img');
                     img.src = String(ev.target && ev.target.result ? ev.target.result : '');
                     img.alt = file.name;
+                    img.style.cursor = 'pointer';
+                    img.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        openImageLightbox(String(img.src));
+                    });
                     box.appendChild(img);
                 };
                 reader.readAsDataURL(file);
@@ -168,6 +178,11 @@ function _createImageForm({ characterSrc, characterName }) {
                     const img = document.createElement('img');
                     img.src = String(ev.target && ev.target.result ? ev.target.result : '');
                     img.alt = file.name;
+                    img.style.cursor = 'pointer';
+                    img.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        openImageLightbox(String(img.src));
+                    });
                     box.appendChild(img);
                 };
                 reader.readAsDataURL(file);
@@ -644,6 +659,11 @@ function initTaoAnhPage() {
                                 const img = document.createElement('img');
                                 img.src = String(it.image2);
                                 img.alt = 'product';
+                                img.style.cursor = 'pointer';
+                                img.addEventListener('click', (ev) => {
+                                    ev.stopPropagation();
+                                    openImageLightbox(String(img.src));
+                                });
                                 prodBox.appendChild(img);
                             }
                         }
@@ -673,6 +693,11 @@ function initTaoAnhPage() {
                                 img.alt = 'result';
                                 img.style.maxWidth = '100%';
                                 img.style.maxHeight = '100%';
+                                img.style.cursor = 'pointer';
+                                img.addEventListener('click', (ev) => {
+                                    ev.stopPropagation();
+                                    openImageLightbox(String(img.src));
+                                });
                                 box.appendChild(img);
                             }
                         }
@@ -710,6 +735,11 @@ function initTaoAnhPage() {
                                             img.alt = 'result';
                                             img.style.maxWidth = '100%';
                                             img.style.maxHeight = '100%';
+                                            img.style.cursor = 'pointer';
+                                            img.addEventListener('click', (ev) => {
+                                                ev.stopPropagation();
+                                                openImageLightbox(String(img.src));
+                                            });
                                             box.appendChild(img);
                                         }
                                         formEl.dataset.taskId = '';
@@ -944,6 +974,11 @@ function initTaoAnhPage() {
                                 img.alt = 'result';
                                 img.style.maxWidth = '100%';
                                 img.style.maxHeight = '100%';
+                                img.style.cursor = 'pointer';
+                                img.addEventListener('click', (ev) => {
+                                    ev.stopPropagation();
+                                    openImageLightbox(String(img.src));
+                                });
                                 resultBox.appendChild(img);
                                 delete _createImagesPending[taskId];
                                 _persistTaoAnhStateNow();
@@ -1001,6 +1036,26 @@ function initTaoAnhPage() {
         };
     }
 }
+
+function openImageLightbox(src) {
+    const box = document.getElementById('imageLightbox');
+    const img = document.getElementById('imageLightboxImg');
+    if (!box || !img) return;
+    img.src = src;
+    box.style.display = 'flex';
+}
+
+function closeImageLightbox() {
+    const box = document.getElementById('imageLightbox');
+    if (!box) return;
+    box.style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageLightbox();
+    }
+});
 
 window.PageInits = window.PageInits || {};
 window.PageInits['tao-anh'] = initTaoAnhPage;

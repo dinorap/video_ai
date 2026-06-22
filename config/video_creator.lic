@@ -1,4 +1,4 @@
 {
-    "payload": "{\"hwid\": \"fdf580eb248c9cfd60bc7ab0779f68fc1e25d4947f180ab91ee470417aa81fb7\", \"last_check\": 1780256100.853246, \"license_key\": \"8MVK-0U4N-S3O6-D3XP\", \"server_data\": {\"expire_at\": \"2026-07-25T01:19:01.094836\", \"ok\": true, \"reason\": null, \"ui_mode\": 1, \"yt_plan\": \"standard\"}, \"server_url\": \"https://license.nanoproai.shop\"}",
-    "signature": "03880cbb616fddbb80382f431261ccc5727c00402e2d6ac9f88f18ae3a2c39e2"
+    "payload": "{\"hwid\": \"fdf580eb248c9cfd60bc7ab0779f68fc1e25d4947f180ab91ee470417aa81fb7\", \"last_check\": 1782114301.4306753, \"license_key\": \"8MVK-0U4N-S3O6-D3XP\", \"server_data\": {\"expire_at\": \"2026-07-25T01:19:01.094836\", \"ok\": true, \"reason\": null, \"ui_mode\": 1, \"yt_plan\": \"standard\"}, \"server_url\": \"https://license.nanoproai.shop\"}",
+    "signature": "aa356843871a821b84651c896a43631ec424268eaa119e08a78cd9ae294e3e8f"
 }
