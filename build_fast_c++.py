@@ -143,6 +143,8 @@ def _version_without_v() -> str:
 def _nuitka_env(base: dict | None = None) -> dict:
     env = dict(base or os.environ)
     env["NUITKA_ASSUME_YES_FOR_DOWNLOADS"] = "1"
+    env["CCACHE_NODIRECT"] = "1"
+    env["MSVC_MAX_MEMORY"] = "4096"
     extra_cl = "/Zm300"
     env["CL"] = (env.get("CL", "") + " " + extra_cl).strip()
     env["_CL_"] = (env.get("_CL_", "") + " " + extra_cl).strip()
@@ -217,6 +219,7 @@ def run_nuitka_main() -> None:
         "--msvc=latest",
         f"--jobs={JOBS}",
         "--low-memory",
+        "--lto=no",
         f"--output-dir={DIST_ROOT.as_posix()}",
         f"--output-filename={APP_NAME}.exe",
         "--windows-console-mode=force",
@@ -230,7 +233,8 @@ def run_nuitka_main() -> None:
         cmd.append(f"--nofollow-import-to={pkg}")
 
     for pkg in resolve_include_packages():
-        cmd.append(f"--include-package={pkg}")
+        if pkg not in ("playwright", "playwright_stealth"):
+            cmd.append(f"--include-package={pkg}")
 
     for mod in INCLUDE_MODULES:
         cmd.append(f"--include-module={mod}")
