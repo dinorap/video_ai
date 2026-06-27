@@ -490,9 +490,9 @@ select.input-control {
 .btn-delete,
 .btn-clear,
 .modal-cancel {
-    background  : rgba(255, 255, 255, 0.045);
-    color       : var(--text-main);
-    border-color: var(--border-color);
+    color       : #fff;
+    background  : var(--gradient-btn);
+    border-color: var(--border-strong);
 }
 
 .btn-delete {

@@ -64,12 +64,28 @@ async function loadScript(fileName) {
 function renderScenes(scenes) {
     const sceneContainer = document.getElementById('sceneContainer');
     if (!sceneContainer) return;
-    sceneContainer.innerHTML = '';
+
+    // Cập nhật currentScriptData trước khi render để đảm bảo đồng bộ
+    currentScriptData = Array.isArray(scenes) ? scenes : [];
+
+    // Lưu scroll position trước khi re-render (tính theo phần tử đang thấy)
+    let savedScrollTop = sceneContainer.scrollTop;
+    let savedRelativeScroll = 0;
+    const scrollHeight = sceneContainer.scrollHeight;
+    const clientHeight = sceneContainer.clientHeight;
+    if (scrollHeight > clientHeight) {
+        savedRelativeScroll = savedScrollTop / (scrollHeight - clientHeight);
+    }
+
+    // Tạo document fragment để render không trigger scroll
+    const fragment = document.createDocumentFragment();
 
     const viewportHeight = window.innerHeight;
     const containerTop = sceneContainer.getBoundingClientRect().top;
-    const availableHeight = viewportHeight - containerTop - 100;
-    sceneContainer.style.maxHeight = Math.max(300, availableHeight) + 'px';
+    // Tăng chiều cao tối đa để hiển thị nhiều cảnh hơn
+    const availableHeight = viewportHeight - containerTop - 60;
+    // Tăng min-height và giảm buffer để container dài hơn
+    sceneContainer.style.maxHeight = Math.max(500, availableHeight) + 'px';
     sceneContainer.style.overflowY = 'auto';
     sceneContainer.style.paddingRight = '8px';
 
@@ -91,10 +107,16 @@ function renderScenes(scenes) {
         sceneDiv.dataset.sceneIndex = index;
         sceneDiv.style.cssText = 'background: var(--card-bg, rgba(255,255,255,0.08)); border: 2px solid var(--border-color, rgba(255,255,255,0.2)); border-radius: 12px; padding: 16px; margin-bottom: 16px; cursor: move; transition: all 0.3s ease; position: relative;';
 
+        // Ẩn nút xóa nếu chỉ còn 1 cảnh
+        const showDeleteBtn = scenes.length > 1;
+        const deleteBtnStyle = showDeleteBtn
+            ? 'background: var(--accent-red, #e74c3c); color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;'
+            : 'display: none;';
+
         sceneDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <div style="color: var(--text-primary, #fff); font-weight: bold; font-size: 18px;">Cảnh ${scene.scene}</div>
-                <button class="delete-scene-btn" data-scene-index="${index}" style="background: var(--accent-red, #e74c3c); color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">Xóa</button>
+                <button class="delete-scene-btn" data-scene-index="${index}" style="${deleteBtnStyle}">Xóa</button>
             </div>
             <div style="margin-bottom: 12px;">
                 <label style="color: var(--text-secondary, #e0e0e0); font-size: 15px; font-weight: 600; display: block; margin-bottom: 6px;">Prompt:</label>
@@ -118,10 +140,15 @@ function renderScenes(scenes) {
             sceneDiv.style.boxShadow = 'none';
         });
 
-        sceneContainer.appendChild(sceneDiv);
+        fragment.appendChild(sceneDiv);
     });
 
-    document.querySelectorAll('.delete-scene-btn').forEach(btn => {
+    // Xóa container và append fragment trong một lần để tránh scroll nhảy
+    sceneContainer.innerHTML = '';
+    sceneContainer.appendChild(fragment);
+
+    // Bind sự kiện xóa sau khi append
+    sceneContainer.querySelectorAll('.delete-scene-btn').forEach(btn => {
         btn.addEventListener('click', function () {
             const sceneIndex = parseInt(this.dataset.sceneIndex);
             deleteScene(sceneIndex);
@@ -130,9 +157,21 @@ function renderScenes(scenes) {
 
     makeScenesDraggable();
     updateButtonStates();
+
+    // Khôi phục scroll position sau khi render xong
+    const newScrollHeight = sceneContainer.scrollHeight;
+    const newClientHeight = sceneContainer.clientHeight;
+    if (newScrollHeight > newClientHeight) {
+        const newScrollTop = savedRelativeScroll * (newScrollHeight - newClientHeight);
+        sceneContainer.scrollTop = Math.max(0, newScrollTop);
+    }
 }
 
 function deleteScene(sceneIndex) {
+    // Không cho xóa nếu chỉ còn 1 cảnh
+    if (currentScriptData.length <= 1) {
+        return;
+    }
     currentScriptData.splice(sceneIndex, 1);
     currentScriptData.forEach((scene, index) => {
         scene.scene = index + 1;
@@ -175,6 +214,7 @@ function updateButtonStates() {
 }
 
 function collectScenes() {
+    // Đồng bộ hóa từ DOM vào currentScriptData trước khi trả về
     const sceneItems = document.querySelectorAll('.scene-item');
     const scenes = [];
 
@@ -188,6 +228,9 @@ function collectScenes() {
             audio: audio
         });
     });
+
+    // Cập nhật currentScriptData để giữ đồng bộ với DOM
+    currentScriptData = scenes;
 
     return scenes;
 }
@@ -351,7 +394,10 @@ async function saveScript(fileName) {
 
         const scriptSelect = document.getElementById('scriptSelect');
         if (scriptSelect) {
-            scriptSelect.value = fileName + '.txt';
+            const savedFileName = fileName + '.txt';
+            scriptSelect.value = savedFileName;
+            // Reload lại nội dung kịch bản vừa lưu
+            await loadScript(savedFileName);
         }
 
         showSuccessOverlay('Đã lưu kịch bản thành công!');

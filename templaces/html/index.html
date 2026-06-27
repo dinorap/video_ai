@@ -96,177 +96,189 @@
 
             <!-- RIGHT SIDEBAR: Configuration -->
             <div id="sidebar">
-            <div class="section-title"><img class="section-icon" src="/ico/key.png" alt=""> License</div>
-            <div class="group-box">
-                <div class="license-key-row">
-                    <input type="text" class="input-control" id="license-key-input" placeholder="Nhập license key"
-                        autocomplete="off" spellcheck="false" />
-                    <i class="fas fa-copy copy-btn" id="btn-copy-license" onclick="copyLicenseKey(event)"
-                        title="Sao chép key" style="cursor:pointer;"></i>
-                </div>
-                <div class="license-meta">
-                    <div id="license-status-text">Đang tải...</div>
-                    <div id="license-expire-text"></div>
-                </div>
-                <button type="button" class="btn btn-settings license-activate-btn" id="btn-license-activate">
-                    <i class="fas fa-key"></i> KÍCH HOẠT
-                </button>
-            </div>
-
-            <div class="section-title"><img class="section-icon" src="/ico/people.png" alt=""> Quản lý tài khoản</div>
-            <div class="group-box">
-                <div>
-                    <span class="label">Model AI Đang dùng</span>
-                    <select class="input-control" id="model-select">
-                        <option>Grok (X-AI)</option>
-                        <option>Veo3 (Google)</option>
-                    </select>
-                </div>
-                <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon" src="/ico/settings.png"
-                        alt=""> THIẾT LẬP TÀI KHOẢN</button>
-            </div>
-
-            <div class="section-title"><i class="fas fa-folder-open"></i> Thư mục lưu kết quả</div>
-            <div class="group-box result-folder-box">
-                <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
-                    <span class="folder-symbol">▣</span>
-                    <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
-                </button>
-                <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
-            </div>
-
-            <div class="section-title"><img class="section-icon" src="/ico/setting-lines.png" alt=""> Cấu hình chạy</div>
-            <div class="group-box" style="gap: 8px;">
-                <div style="display: flex; flex-direction: row; gap: 8px;">
-                    <div style="flex: 1;">
-                        <span class="label">Chất lượng</span>
-                        <select class="input-control" id="video-quality-select">
-                            <option selected>1080p</option>
-                            <option>720p</option>
-                        </select>
+                <div class="section-title"><img class="section-icon" src="/ico/key.png" alt=""> License</div>
+                <div class="group-box">
+                    <div class="license-key-row">
+                        <input type="text" class="input-control" id="license-key-input" placeholder="Nhập license key"
+                            autocomplete="off" spellcheck="false" />
+                        <i class="fas fa-copy copy-btn" id="btn-copy-license" onclick="copyLicenseKey(event)"
+                            title="Sao chép key" style="cursor:pointer;"></i>
                     </div>
-                    <div style="flex: 1;">
-                        <span class="label">Tỉ lệ</span>
-                        <select id="aspect_ratio" class="input-control">
-                            <option selected>9:16</option>
-                            <option>16:9</option>
-                            <option>1:1</option>
-                            <option>3:2</option>
-                            <option>2:3</option>
-                        </select>
+                    <div class="license-meta">
+                        <div id="license-status-text">Đang tải...</div>
+                        <div id="license-expire-text"></div>
                     </div>
-                </div>
-
-                <div id="grok-duration-container" style="display: none;">
-                    <span class="label">Thời lượng video (Grok)</span>
-                    <select class="input-control" id="grok-video-duration">
-                        <option value="6s" selected>6 giây</option>
-                        <option value="10s">10 giây</option>
-                    </select>
-                </div>
-
-                <div id="grok-chain-hint-container" style="display: none;">
-                    <div style="padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: #cbd5e1; background: color-mix(in srgb, #3b82f6 10%, transparent); border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);">
-                        <b>Grok Chain</b> — Cảnh 1 upload ảnh như Grok thường. Từ cảnh 2 trở đi: tự động lấy <b>frame cuối</b> cảnh trước làm ảnh tham chiếu. Chạy <b>tuần tự 1 tab</b>, không song song.
-                    </div>
-                </div>
-
-                <div id="veo3-image-model-container" style="display: none;">
-                    <span class="label">Model tạo ảnh (Veo3)</span>
-                    <select class="input-control" id="veo3-image-model">
-                        <option value="🍌 Nano Banana Pro" selected>🍌 Nano Banana Pro</option>
-                        <option value="🍌 Nano Banana 2">🍌 Nano Banana 2</option>
-                        <option value="Imagen 4">Imagen 4</option>
-                    </select>
-                </div>
-
-                <div id="veo3-video-quality-container" style="display: none;">
-                    <span class="label">Model tạo video</span>
-                    <select class="input-control" id="veo3-video-quality">
-                        <option value="Veo 3.1 - Lite [Lower Priority]" selected>Veo 3.1 - Lite [Lower Priority]</option>
-                        <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
-                        <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
-                        <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
-                    </select>
-                </div>
-
-                <div id="max-tabs-container">
-                    <span class="label">Số tab chạy song song</span>
-                    <input class="input-control" id="max-tabs-input" type="number" min="1" max="10" value="5" />
-                </div>
-            </div>
-
-            <div class="section-title"><img class="section-icon" src="/ico/musical.png" alt=""> Âm thanh &amp; Xử lý</div>
-            <div class="group-box">
-                <div>
-                    <span class="label">Nhạc nền video</span>
-                    <input class="input-control" id="musicSelect" list="musicSelectList" placeholder="Gõ để tìm nhạc..." />
-                    <datalist id="musicSelectList">
-                        <option value="None (Mặc định)"></option>
-                        <option value="vibrant-fashion.mp3"></option>
-                        <option value="cinematic-bgm.mp3"></option>
-                    </datalist>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                    <button class="btn btn-gold" id="addMusicBtn" style="grid-column: span 2;">+ Thêm âm thanh</button>
-                    <button class="btn btn-preview"><i class="fas fa-play"></i> Nghe thử</button>
-                    <button class="btn btn-delete" onclick="deleteSelectedMusic()">
-                        <i class="fas fa-trash-alt"></i> Xóa
+                    <button type="button" class="btn btn-settings license-activate-btn" id="btn-license-activate">
+                        <i class="fas fa-key"></i> KÍCH HOẠT
                     </button>
                 </div>
-                <label class="random-inline">
-                    <input id="random-music-checkbox" type="checkbox" checked>
-                    <span>Chế độ Random nhạc</span>
-                </label>
-                <div style="margin-top: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span class="label" style="margin: 0;">Âm lượng nhạc nền</span>
-                        <span id="music-volume-label" style="font-size: 12px; color: #aaa;">60%</span>
-                    </div>
-                    <input class="input-control" id="music-volume-input" type="range" min="0" max="100" value="60" step="1" style="width: 100%; padding: 0;" />
+
+                <div class="section-title"><img class="section-icon" src="/ico/people.png" alt=""> Quản lý tài khoản
                 </div>
-                <div style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span class="label" style="margin: 0;">Âm lượng video gốc</span>
-                        <span id="video-audio-volume-label" style="font-size: 12px; color: #aaa;">100%</span>
+                <div class="group-box">
+                    <div>
+                        <span class="label">Model AI Đang dùng</span>
+                        <select class="input-control" id="model-select">
+                            <option>Grok (X-AI)</option>
+                            <option>Veo3 (Google)</option>
+                        </select>
                     </div>
-                    <input class="input-control" id="video-audio-volume-input" type="range" min="0" max="100" value="100" step="1" style="width: 100%; padding: 0;" />
+                    <button class="btn btn-settings" id="btn-settings-account"><img class="btn-icon"
+                            src="/ico/settings.png" alt=""> THIẾT LẬP TÀI KHOẢN</button>
                 </div>
+
+                <div class="section-title"><i class="fas fa-folder-open"></i> Thư mục lưu kết quả</div>
+                <div class="group-box result-folder-box">
+                    <button id="resultFolderBtn" class="btn btn-folder" style="width: 100%;">
+                        <span class="folder-symbol">▣</span>
+                        <span id="resultFolderLabel">THƯ MỤC KẾT QUẢ</span>
+                    </button>
+                    <input id="resultFolderInput" type="file" webkitdirectory directory multiple style="display:none;">
+                </div>
+
+                <div class="section-title"><img class="section-icon" src="/ico/setting-lines.png" alt=""> Cấu hình chạy
+                </div>
+                <div class="group-box" style="gap: 8px;">
+                    <div style="display: flex; flex-direction: row; gap: 8px;">
+                        <div style="flex: 1;">
+                            <span class="label">Chất lượng</span>
+                            <select class="input-control" id="video-quality-select">
+                                <option selected>1080p</option>
+                                <option>720p</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <span class="label">Tỉ lệ</span>
+                            <select id="aspect_ratio" class="input-control">
+                                <option selected>9:16</option>
+                                <option>16:9</option>
+                                <option>1:1</option>
+                                <option>3:2</option>
+                                <option>2:3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="grok-duration-container" style="display: none;">
+                        <span class="label">Thời lượng video (Grok)</span>
+                        <select class="input-control" id="grok-video-duration">
+                            <option value="6s" selected>6 giây</option>
+                            <option value="10s">10 giây</option>
+                        </select>
+                    </div>
+
+                    <div id="grok-chain-hint-container" style="display: none;">
+                        <div
+                            style="padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; color: #cbd5e1; background: color-mix(in srgb, #3b82f6 10%, transparent); border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);">
+                            <b>Grok Chain</b> — Cảnh 1 upload ảnh như Grok thường. Từ cảnh 2 trở đi: tự động lấy
+                            <b>frame cuối</b> cảnh trước làm ảnh tham chiếu. Chạy <b>tuần tự 1 tab</b>, không song song.
+                        </div>
+                    </div>
+
+                    <div id="veo3-image-model-container" style="display: none;">
+                        <span class="label">Model tạo ảnh (Veo3)</span>
+                        <select class="input-control" id="veo3-image-model">
+                            <option value="🍌 Nano Banana Pro" selected>🍌 Nano Banana Pro</option>
+                            <option value="🍌 Nano Banana 2">🍌 Nano Banana 2</option>
+                            <option value="Imagen 4">Imagen 4</option>
+                        </select>
+                    </div>
+
+                    <div id="veo3-video-quality-container" style="display: none;">
+                        <span class="label">Model tạo video</span>
+                        <select class="input-control" id="veo3-video-quality">
+                            <option value="Veo 3.1 - Lite [Lower Priority]" selected>Veo 3.1 - Lite [Lower Priority]
+                            </option>
+                            <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
+                            <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
+                            <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
+                        </select>
+                    </div>
+
+                    <div id="max-tabs-container">
+                        <span class="label">Số tab chạy song song</span>
+                        <input class="input-control" id="max-tabs-input" type="number" min="1" max="10" value="5" />
+                    </div>
+                </div>
+
+                <div class="section-title"><img class="section-icon" src="/ico/musical.png" alt=""> Âm thanh &amp; Xử lý
+                </div>
+                <div class="group-box">
+                    <div>
+                        <span class="label">Nhạc nền video</span>
+                        <input class="input-control" id="musicSelect" list="musicSelectList"
+                            placeholder="Gõ để tìm nhạc..." />
+                        <datalist id="musicSelectList">
+                            <option value="None (Mặc định)"></option>
+                            <option value="vibrant-fashion.mp3"></option>
+                            <option value="cinematic-bgm.mp3"></option>
+                        </datalist>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                        <button class="btn btn-gold" id="addMusicBtn" style="grid-column: span 2;">+ Thêm âm
+                            thanh</button>
+                        <button class="btn btn-preview"><i class="fas fa-play"></i> Nghe thử</button>
+                        <button class="btn btn-delete" onclick="deleteSelectedMusic()">
+                            <i class="fas fa-trash-alt"></i> Xóa
+                        </button>
+                    </div>
+                    <label class="random-inline">
+                        <input id="random-music-checkbox" type="checkbox" checked>
+                        <span>Chế độ Random nhạc</span>
+                    </label>
+                    <div style="margin-top: 10px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span class="label" style="margin: 0;">Âm lượng nhạc nền</span>
+                            <span id="music-volume-label" style="font-size: 12px; color: #aaa;">60%</span>
+                        </div>
+                        <input class="input-control" id="music-volume-input" type="range" min="0" max="100" value="60"
+                            step="1" style="width: 100%; padding: 0;" />
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span class="label" style="margin: 0;">Âm lượng video gốc</span>
+                            <span id="video-audio-volume-label" style="font-size: 12px; color: #aaa;">100%</span>
+                        </div>
+                        <input class="input-control" id="video-audio-volume-input" type="range" min="0" max="100"
+                            value="100" step="1" style="width: 100%; padding: 0;" />
+                    </div>
+                </div>
+                <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
+                <button type="button" class="btn btn-settings" id="btn-log-settings"
+                    style="width: 100%; margin: 8px 0 12px 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                    <i class="fas fa-terminal"></i> Quản lý Log
+                </button>
             </div>
-            <input id="addMusicInput" type="file" accept="audio/*,video/*" style="display:none;">
-            <button type="button" class="btn btn-settings" id="btn-log-settings"
-                style="width: 100%; margin: 8px 0 12px 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                <i class="fas fa-terminal"></i> Quản lý Log
-            </button>
         </div>
-    </div>
-    <div id="overlays-root"></div>
-    <script src="/templaces/js/overlays.js"></script>
-    <script src="/templaces/js/home.js"></script>
-    <script src="/templaces/js/clone_video.js"></script>
-    <script src="/templaces/js/tao_anh.js"></script>
-    <script src="/templaces/js/tao_video.js"></script>
-    <!-- <script src="/templaces/js/kling.js"></script> -->
-    <script src="/templaces/js/version.js"></script>
-    <script src="/templaces/js/updater.js"></script>
-    <script src="/templaces/js/license.js"></script>
-    <script src="/templaces/js/core.js"></script>
+        <div id="overlays-root"></div>
+        <script src="/templaces/js/overlays.js"></script>
+        <script src="/templaces/js/home.js"></script>
+        <script src="/templaces/js/clone_video.js"></script>
+        <script src="/templaces/js/tao_anh.js"></script>
+        <script src="/templaces/js/tao_video.js"></script>
+        <!-- <script src="/templaces/js/kling.js"></script> -->
+        <script src="/templaces/js/version.js"></script>
+        <script src="/templaces/js/updater.js"></script>
+        <script src="/templaces/js/license.js"></script>
+        <script src="/templaces/js/core.js"></script>
 
-    <script>
-        function openHelpGuide() {
-            const modal = document.getElementById('helpGuideModal');
-            if (modal) {
-                modal.style.display = 'flex';
+        <script>
+            function openHelpGuide() {
+                const modal = document.getElementById('helpGuideModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                }
             }
-        }
 
-        function closeHelpGuide() {
-            const modal = document.getElementById('helpGuideModal');
-            if (modal) {
-                modal.style.display = 'none';
+            function closeHelpGuide() {
+                const modal = document.getElementById('helpGuideModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
             }
-        }
-    </script>
+        </script>
 </body>
 
 </html>

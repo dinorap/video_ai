@@ -1,4 +1,4 @@
 {
-    "payload": "{\"hwid\": \"fdf580eb248c9cfd60bc7ab0779f68fc1e25d4947f180ab91ee470417aa81fb7\", \"last_check\": 1782114301.4306753, \"license_key\": \"8MVK-0U4N-S3O6-D3XP\", \"server_data\": {\"expire_at\": \"2026-07-25T01:19:01.094836\", \"ok\": true, \"reason\": null, \"ui_mode\": 1, \"yt_plan\": \"standard\"}, \"server_url\": \"https://license.nanoproai.shop\"}",
-    "signature": "aa356843871a821b84651c896a43631ec424268eaa119e08a78cd9ae294e3e8f"
+    "payload": "{\"hwid\": \"fdf580eb248c9cfd60bc7ab0779f68fc1e25d4947f180ab91ee470417aa81fb7\", \"last_check\": 1782536776.6927915, \"license_key\": \"8MVK-0U4N-S3O6-D3XP\", \"server_data\": {\"expire_at\": \"2026-07-25T01:19:01.094836\", \"message\": \"License \\u0111\\u00e3 \\u0111\\u01b0\\u1ee3c k\\u00edch ho\\u1ea1t\", \"ok\": true, \"ui_mode\": 1, \"yt_plan\": \"standard\"}, \"server_url\": \"https://license.nanoproai.shop\"}",
+    "signature": "3665b7b9f3ba182ec2b330fd7a60b89cdff9bb3b674b5b808ae835bea34a890d"
 }

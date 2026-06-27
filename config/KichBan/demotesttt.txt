@@ -1,12 +1,12 @@
 [
   {
     "scene": 1,
-    "prompt": "thời lượng: 8 giây.\nphim người đóng chân thực, không hoạt hình, không minh họa.\nHình ảnh đầu tiên là tham chiếu sản phẩm (Video Clone).\nChỉ sử dụng nó cho sự xuất hiện của sản phẩm.\nHình ảnh thứ hai là tham chiếu nhân vật.\nChỉ sử dụng nó cho sự xuất hiện của nhân vật.\nCảnh 1: Nhân vật hiển thị toàn thân từ đầu đến chân trong một cảnh quay toàn thân ổn định. Nhân vật đứng thẳng, sau đó chuyển trọng lượng nhẹ nhàng sang hai bên và thực hiện các cử động tay tối thiểu. [Chỉ mô tả tư thế và chuyển động của con người. Không vật thể. Không nền. Không chi tiết ngoại hình. Không ngồi. Không chuyển cảnh. Không chuyển động miệng. Đi bộ và xoay người có thể lặp lại tự nhiên. Camera PHẢI giữ toàn thân và KHÔNG ĐƯỢC phóng to hoặc cắt xén.]",
+    "prompt": "2",
     "audio": ""
   },
   {
     "scene": 2,
-    "prompt": "thời lượng: 8 giây.\nphim người đóng chân thực, không hoạt hình, không minh họa.\nHình ảnh đầu tiên là tham chiếu sản phẩm (Video Clone).\nChỉ sử dụng nó cho sự xuất hiện của sản phẩm.\nHình ảnh thứ hai là tham chiếu nhân vật.\nChỉ sử dụng nó cho sự xuất hiện của nhân vật.\nCảnh 2: Nhân vật hiển thị toàn thân từ đầu đến chân trong một cảnh quay toàn thân ổn định. Nhân vật tiếp tục chuyển trọng lượng nhẹ nhàng sang hai bên và thực hiện các cử động tay tối thiểu, với một chút xoay người. [Chỉ mô tả tư thế và chuyển động của con người. Không vật thể. Không nền. Không chi tiết ngoại hình. Không ngồi. Không chuyển cảnh. Không chuyển động miệng. Đi bộ và xoay người có thể lặp lại tự nhiên. Camera PHẢI giữ toàn thân và KHÔNG ĐƯỢC phóng to hoặc cắt xén.]",
+    "prompt": "1",
     "audio": ""
   }
 ]

@@ -246,6 +246,34 @@ function updateModelSelectForWorkspace(slug) {
     toggleGrokDurationVisibility();
 }
 
+const ASPECT_OPTIONS_VIDEO = ['9:16', '16:9'];
+const ASPECT_OPTIONS_ALL = ['9:16', '16:9', '1:1', '3:2', '2:3'];
+
+function updateAspectRatioForWorkspace(slug) {
+    const aspectSelect = document.getElementById('aspect_ratio');
+    if (!aspectSelect) return;
+
+    const workspace = String(slug || getActiveWorkspaceSlug() || '').trim();
+    const isVideo = workspace === 'tao-video';
+    const options = isVideo ? ASPECT_OPTIONS_VIDEO : ASPECT_OPTIONS_ALL;
+
+    const current = aspectSelect.options[aspectSelect.selectedIndex]
+        ? String(aspectSelect.options[aspectSelect.selectedIndex].text || '').trim()
+        : aspectSelect.value;
+
+    aspectSelect.innerHTML = '';
+    options.forEach((label) => {
+        const opt = document.createElement('option');
+        opt.textContent = label;
+        opt.value = label;
+        aspectSelect.appendChild(opt);
+    });
+
+    if (options.includes(current)) {
+        setSelectByValueOrText(aspectSelect, current);
+    }
+}
+
 
 function initTabBindings() {
     const tabs = document.querySelectorAll('.horizontal-tabs .tab-item');
@@ -267,12 +295,17 @@ function initTabBindings() {
             await loadWorkspace(page);
 
             updateModelSelectForWorkspace(slug);
+            updateAspectRatioForWorkspace(slug);
 
             // Chỉ chạy init và loadConfig nếu tab chưa từng được load
             if (!isAlreadyLoaded) {
                 await loadConfig();
                 updateModelSelectForWorkspace(slug);
+                updateAspectRatioForWorkspace(slug);
                 initWorkspaceBindings(slug);
+            } else {
+                // Tab đã load rồi, vẫn cần cập nhật aspect ratio khi chuyển tab
+                updateAspectRatioForWorkspace(slug);
             }
         };
     });

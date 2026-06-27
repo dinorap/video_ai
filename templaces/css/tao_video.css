@@ -248,3 +248,20 @@
     background: var(--accent-soft);
     border-color: var(--accent);
 }
+/* Chrome, Edge, Safari */
+.scene-list::-webkit-scrollbar {
+    width: 3px;
+}
+
+.scene-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scene-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+}
+
+.scene-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}

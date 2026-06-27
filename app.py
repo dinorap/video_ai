@@ -1347,7 +1347,7 @@ def uninstall():
 
         bat_path = os.path.join(tempfile.gettempdir(), f"video_creator_self_uninstall_{uuid.uuid4().hex[:8]}.bat")
 
-        bat_content = f"""@echo off
+        bat_content = rf"""@echo off
 setlocal
 timeout /t 1 /nobreak > nul
 taskkill /f /pid {pid} > nul 2>&1
