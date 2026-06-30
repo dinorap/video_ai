@@ -61,12 +61,24 @@ async function loadScript(fileName) {
     }
 }
 
+function _escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function renderScenes(scenes) {
     const sceneContainer = document.getElementById('sceneContainer');
     if (!sceneContainer) return;
 
-    // Cập nhật currentScriptData trước khi render để đảm bảo đồng bộ
-    currentScriptData = Array.isArray(scenes) ? scenes : [];
+    const inScenes = Array.isArray(scenes) ? scenes : [];
+    if (typeof console !== 'undefined') {
+      console.debug('[clone_video] renderScenes input=', inScenes.length, 'sample=', inScenes.slice(0, 2));
+    }
+
+    currentScriptData = inScenes.slice();
 
     // Lưu scroll position trước khi re-render (tính theo phần tử đang thấy)
     let savedScrollTop = sceneContainer.scrollTop;
@@ -120,7 +132,7 @@ function renderScenes(scenes) {
             </div>
             <div style="margin-bottom: 12px;">
                 <label style="color: var(--text-secondary, #e0e0e0); font-size: 15px; font-weight: 600; display: block; margin-bottom: 6px;">Prompt:</label>
-                <textarea class="scene-prompt" style="width: 100%; min-height: 120px; background: var(--input-bg, rgba(0,0,0,0.5)); border: 2px solid var(--input-border, rgba(255,255,255,0.3)); border-radius: 8px; padding: 12px; color: var(--text-primary, #fff); font-size: 16px; font-weight: 600; line-height: 1.6; resize: vertical; box-sizing: border-box;">${scene.prompt || ''}</textarea>
+                <textarea class="scene-prompt" style="width: 100%; min-height: 120px; background: var(--input-bg, rgba(0,0,0,0.5)); border: 2px solid var(--input-border, rgba(255,255,255,0.3)); border-radius: 8px; padding: 12px; color: var(--text-primary, #fff); font-size: 16px; font-weight: 600; line-height: 1.6; resize: vertical; box-sizing: border-box;">${_escapeHtml(scene.prompt || '')}</textarea>
             </div>
             <div>
                 <label style="color: var(--text-secondary, #e0e0e0); font-size: 15px; font-weight: 600; display: block; margin-bottom: 6px;">Audio:</label>
@@ -214,7 +226,6 @@ function updateButtonStates() {
 }
 
 function collectScenes() {
-    // Đồng bộ hóa từ DOM vào currentScriptData trước khi trả về
     const sceneItems = document.querySelectorAll('.scene-item');
     const scenes = [];
 
@@ -231,6 +242,10 @@ function collectScenes() {
 
     // Cập nhật currentScriptData để giữ đồng bộ với DOM
     currentScriptData = scenes;
+
+    if (typeof console !== 'undefined') {
+      console.debug('[clone_video] collectScenes count=', scenes.length, 'prompts=', scenes.map(s => (s.prompt || '').slice(0, 40)));
+    }
 
     return scenes;
 }
